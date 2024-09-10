@@ -12,4 +12,4 @@ def helloWorld():
 
 @app.get("/test")
 def test():
-  return {"test"}
+  return {"test.."}
