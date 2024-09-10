@@ -2,12 +2,10 @@ from fastapi import APIRouter
 from database import mysql_create_session
 
 router = APIRouter(
-  prefix="/news",
-  tags=["news"]
+  prefix="/board",
+  tags=["board"]
 )
 
 @router.get("/")
-def tmp_news():
+def tmp_board():
   return "HELLO WORLD"
-
-
