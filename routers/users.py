@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 import os
 from dotenv import load_dotenv
 import bcrypt
@@ -63,7 +63,7 @@ def login(user:Login_User):
   user_id, password = user_dict.values()
 
   try:
-    sql = 'SELECT * FROM users WHERE id = %s'
+    sql = 'SELECT * FROM users WHERE email = %s'
     cur.execute(sql,(user_id))
     #쿼리 결과의 첫번째 행
     row = cur.fetchone()
@@ -75,8 +75,8 @@ def login(user:Login_User):
     
     #비밀번호 해싱후 체크
     if bcrypt.checkpw(password.encode('utf-8'), row['passwd'].encode('utf-8')):
-      access_token = create_token(data={"sub":row['user_id'],"nick":row['nickname'],"type":"access_token"},expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES)
-      refresh_token = create_token(data={"sub":row["user_id"],"type":"refresh_token"},expires_delta=REFRESH_TOKEN_EXPIRE_MINUTES)
+      access_token = create_token(data={"sub":row['emial'],"nick":row['nickname'],"type":"access_token"},expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES)
+      refresh_token = create_token(data={"sub":row["email"],"type":"refresh_token"},expires_delta=REFRESH_TOKEN_EXPIRE_MINUTES)
 
 
       #리턴 값 data안에 일단 닉네임 넣음
