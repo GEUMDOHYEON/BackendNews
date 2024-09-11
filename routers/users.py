@@ -33,7 +33,7 @@ def tmp_user():
 #회원가입 API
 #response_model_exclude_unset=True : 디폴트값은 제외
 @router.post("/register", response_model=Response_Register, response_model_exclude_unset=True)
-async def register(user:Register_User):
+def register(user:Register_User):
   conn,cur = mysql_create_session()
   user_dict = user.model_dump()
   email,user_name,password,user_number,nickname,user_age = user_dict.values()
@@ -57,7 +57,7 @@ async def register(user:Register_User):
 
 #로그인 API
 @router.post("/login", response_model=Response_Login, response_model_exclude_unset=True)
-async def login(user:Login_User):
+def login(user:Login_User):
   conn,cur = mysql_create_session()
   user_dict = user.model_dump()
   user_id, password = user_dict.values()
