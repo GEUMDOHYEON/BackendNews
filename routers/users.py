@@ -36,14 +36,14 @@ def tmp_user():
 def register(user:Register_User):
   conn,cur = mysql_create_session()
   user_dict = user.model_dump()
-  email,user_name,password,user_number,nickname,user_age = user_dict.values()
+  user_email,user_password,user_name,user_number,user_nickname,user_age = user_dict.values()
 
   #패스워드 해싱
-  hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+  hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
 
   try:
     sql = 'INSERT INTO users(email, user_name, password,user_number,nickname,user_age) VALUES (%s, %s, %s, %s, %s, %s)'
-    cur.execute(sql,(email,user_name,password,user_number,nickname,user_age))
+    cur.execute(sql,(user_email,user_name,hashed_password,user_number,user_nickname,user_age))
     conn.commit()
     return Response_Register(status=201, message="회원가입 성공")
   except Exception as e:
