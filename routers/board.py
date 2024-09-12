@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Response
 from database import mysql_create_session
 from schemas.board import PostUpload_Model
+from datetime import datetime
 
 router = APIRouter(
   prefix="/board",
@@ -14,10 +15,16 @@ async def upload(response:Response, postUpload_data : PostUpload_Model):
   conn, cur = mysql_create_session()
   
   # 토큰 디코딩
-  token_data = 
   
-  # 유저 정보 - 토큰 디코딩 - 아이디, 닉네임 가져오기
-  user_id = 
+  # 유저 정보 - 토큰 디코딩 후 - 아이디, 닉네임 가져오기
+  # nickname = 
+  
+  # 게시판 정보 - 제목, 내용, 작성 시간
+  title = postUpload_data.community_title
+  content = postUpload_data.community_content
+  
+  now = datetime.now()
+  createat = now.strftime("%Y-%m-%d")
   
   
   
