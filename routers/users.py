@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 import os
 from dotenv import load_dotenv
 import bcrypt
@@ -36,14 +36,14 @@ def tmp_user():
 def register(user:Register_User):
   conn,cur = mysql_create_session()
   user_dict = user.model_dump()
-  email,user_name,password,user_number,nickname,user_age = user_dict.values()
+  user_email,user_password,user_name,user_number,user_nickname,user_age = user_dict.values()
 
   #패스워드 해싱
-  hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+  hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
 
   try:
     sql = 'INSERT INTO users(email, user_name, password,user_number,nickname,user_age) VALUES (%s, %s, %s, %s, %s, %s)'
-    cur.execute(sql,(email,user_name,password,user_number,nickname,user_age))
+    cur.execute(sql,(user_email,user_name,hashed_password,user_number,user_nickname,user_age))
     conn.commit()
     return Response_Register(status=201, message="회원가입 성공")
   except Exception as e:
@@ -63,7 +63,7 @@ def login(user:Login_User):
   user_id, password = user_dict.values()
 
   try:
-    sql = 'SELECT * FROM users WHERE id = %s'
+    sql = 'SELECT * FROM users WHERE email = %s'
     cur.execute(sql,(user_id))
     #쿼리 결과의 첫번째 행
     row = cur.fetchone()
@@ -75,8 +75,8 @@ def login(user:Login_User):
     
     #비밀번호 해싱후 체크
     if bcrypt.checkpw(password.encode('utf-8'), row['passwd'].encode('utf-8')):
-      access_token = create_token(data={"sub":row['user_id'],"nick":row['nickname'],"type":"access_token"},expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES)
-      refresh_token = create_token(data={"sub":row["user_id"],"type":"refresh_token"},expires_delta=REFRESH_TOKEN_EXPIRE_MINUTES)
+      access_token = create_token(data={"sub":row['emial'],"nick":row['nickname'],"type":"access_token"},expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES)
+      refresh_token = create_token(data={"sub":row["email"],"type":"refresh_token"},expires_delta=REFRESH_TOKEN_EXPIRE_MINUTES)
 
 
       #리턴 값 data안에 일단 닉네임 넣음

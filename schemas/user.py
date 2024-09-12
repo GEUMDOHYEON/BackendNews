@@ -2,18 +2,17 @@ from pydantic import BaseModel
 
 #회원가입 DTO
 class Register_User(BaseModel):
-  user_id:str
-  password:str
+  user_email:str
+  user_password:str
   user_name:str
-  nickname:str
-  email:str
   user_number:str
+  user_nickname:str
   user_age:int
 
 
 #로그인 DTO
 class Login_User(BaseModel):
-  user_id:str
+  email:str
   password:str
 
 
