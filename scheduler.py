@@ -17,14 +17,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+# 네이버 뉴스 api 이용하기 위해서 ssl 무시
 ssl._create_default_https_context = ssl._create_unverified_context
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
+# 네이버 뉴스 api 키
 CLIENT_ID = os.environ['CLIENT_ID']
 CLIENT_SECRET = os.environ['CLIENT_SECRET']
 
+# 뉴스 키워드 
 KEYWORDS = ["정치", "과학", "스포츠", "사회", "시사", "경제", "생활"]
 
 def get_news_from_api():
@@ -32,6 +35,7 @@ def get_news_from_api():
   try:
     for keyword in KEYWORDS:
         encText = urllib.parse.quote(keyword)
+        # 네이버 뉴스 api 이용
         url = "https://openapi.naver.com/v1/search/news?query=" + encText 
         request = urllib.request.Request(url)
         request.add_header("X-Naver-Client-Id",CLIENT_ID)
@@ -46,6 +50,7 @@ def get_news_from_api():
                 response_dict = json.loads(response_body.decode('utf-8'))
                 items = response_dict['items']
                 
+                # 네이버 뉴스API를 통해 가져온 결과값(링크, 제목, 생성일)
                 for item in items:
                     if 'naver.com' in item['link']:
                         try:
@@ -66,6 +71,7 @@ def get_news_from_api():
 
                             conn.commit()
                             
+                            # 기사 본문을 크롤링하기 위함(스포츠와 연예 뉴스는 동적 페이지라 셀리니움 크롤링 이용)
                             if 'sports.naver' in item['link'] or 'entertain.naver' in item['link']:
                                 article_content, article_image = crawl_dynamic_article(item['link'])
                             else:
@@ -96,19 +102,22 @@ def get_news_from_api():
     cur.close()
     conn.close()
 
+# 일반 뉴스 기사 크롤링
 def crawl_article(url):
     try:
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
 
+        # 뉴스 본문
         content = soup.select_one('article.go_trans._article_content')
-
+        # 뉴스 사진
         image = soup.select_one('meta[property="og:image"]')['content'] if soup.select_one('meta[property="og:image"]') else None
 
         return content.text.strip(), image
     except Exception as e:
         print(f"크롤링 에러 : {e}")
 
+# 동적 페이지 크롤링
 def crawl_dynamic_article(url):
     driver = webdriver.Chrome() 
 
@@ -116,11 +125,11 @@ def crawl_dynamic_article(url):
 
     try:
         # WebDriverWait를 사용하여 특정 요소가 나타날 때까지 최대 10초 동안 기다림
+        # 뉴스 본문
         content = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CLASS_NAME, '_article_content'))
         )
-        
-
+        # 뉴스 이미지
         image = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, '._article_content img'))
         )
