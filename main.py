@@ -5,12 +5,14 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from scheduler import get_news_from_api
 from contextlib import asynccontextmanager
 
+# 백그라운드 스케줄링 작업
 @asynccontextmanager
 async def lifespan(app: FastAPI):
   scheduler = BackgroundScheduler()
-  scheduler.add_job(get_news_from_api, 'interval', hours=10)
+  # 1시간마다 새로운 뉴스를 가져오기 위해 뉴스 스크래핑 작업 진행
+  scheduler.add_job(get_news_from_api, 'interval', hours=1)
   scheduler.start()
-
+  # 서버 실행 후 곧바로 뉴스 스크래핑 작업 진행
   get_news_from_api()
 
   yield
