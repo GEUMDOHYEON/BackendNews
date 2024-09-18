@@ -29,7 +29,3 @@ app.include_router(board.router)
 @app.get("/")
 def helloWorld():
   return {"HELLO WORLD"}
-
-@app.get("/test")
-def test():
-  return {"test.."}
