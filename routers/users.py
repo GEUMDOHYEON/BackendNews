@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 import bcrypt
 from database import mysql_create_session
-from token import create_token
+from tokens import create_token
 from schemas.user import *
 
 # /user에 접속후 api
