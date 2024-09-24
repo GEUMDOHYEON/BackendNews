@@ -1,5 +1,11 @@
+import os
+import sys
 from fastapi import APIRouter
 from database import mysql_create_session
+from dotenv import load_dotenv
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 router = APIRouter(
   prefix="/news",
@@ -7,7 +13,6 @@ router = APIRouter(
 )
 
 @router.get("/")
-def tmp_news():
-  return "HELLO WORLD"
-
+def tmp_new():
+  return "HELLO WORLD!"
 
