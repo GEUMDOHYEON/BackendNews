@@ -1,10 +1,11 @@
 import os
 import sys
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from database import mysql_create_session
 from dotenv import load_dotenv
 from schemas.news import *
 from datetime import date
+from tokens import *
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -14,7 +15,7 @@ router = APIRouter(
   tags=["news"]
 )
 
-# 뉴스 썸네일 가져오는 API(keyword별 itemCount 만큼 조회)
+# 뉴스 목록 가져오는 API(keyword별 itemCount 만큼 조회)
 @router.get("/getNewsList/{keyword}/{itemCount}", response_model=Response_NewsList)
 def getNewsList(keyword: str, itemCount: int):
   conn,cur = mysql_create_session()
@@ -86,8 +87,204 @@ def highestViews():
     cur.close()
     conn.close()
 
-# 뉴스 좋아요 API
-@router.post("/like")
-def likeNews():
+# 뉴스 좋아요 API (토글처럼 좋아요, 좋아요 취소)
+@router.post("/like", response_model=Response_Like_Scrap)
+def likeNews(data: My_News):
+  token = {"access_token": data.access_token, "refresh_token": data.refresh_token}
+  # 뉴스 id
+  article_id = data.article_id
+  payload = expirecheck(token)
+
+  # 회원 email
+  email = payload.data
   conn, cur = mysql_create_session()
-  
+  try:
+    # 유저 id 검색
+    sql1 = 'SELECT user_id FROM Users WHERE user_email = %s'
+    cur.execute(sql1,(email))
+    user_id = cur.fetchone()['user_id']
+
+    # User_Article 테이블에 해당 기사에 대한 회원이 좋아요 했는지 확인 (안했으면 좋아요 했으면 좋아요 취소)
+    sql2 = 'SELECT * FROM User_Article WHERE article_id = %s AND user_id = %s'
+    cur.execute(sql2, (article_id,user_id))
+    article_result = cur.fetchone()
+    print(article_result)
+    # Article 테이블에서 좋아요 수 검색
+    sql3 = 'SELECT article_like FROM Article WHERE article_id = %s'
+    cur.execute(sql3,(article_id,))
+    article_like = cur.fetchone()['article_like']
+    # 스크랩과 좋아요가 같은 테이블에서 다루기 때문에 if문으로 검증
+    if article_result == None:
+      # 기사의 좋아요 수 1 증가
+      article_like += 1
+      sql4 = 'UPDATE Article SET article_like = %s WHERE article_id = %s'
+      cur.execute(sql4,(article_like, article_id))
+      conn.commit()
+      # User_Article 테이블에 기사와 회원 id 추가 + 좋아요 1로 수정
+      sql5 = 'INSERT INTO User_Article (article_id, user_id, user_article_like) VALUES (%s,%s,1)' 
+      cur.execute(sql5,(article_id,user_id))
+      conn.commit()
+      # 결과값 전송
+      return Response_Like_Scrap(status=201,message="좋아요 성공", data=article_like)
+    else: # 스크랩이 존재하거나 좋아요 상태일때
+      # 좋아요 상태이면 좋아요 취소하기
+      if article_result['user_article_like'] == 1:
+        # 기사의 좋아요 수 1 감소
+          article_like -= 1
+          sql6 = 'UPDATE Article SET article_like = %s WHERE article_id = %s'
+          cur.execute(sql6,(article_like, article_id))
+          conn.commit()
+
+        # User_Article 테이블에 해당 행 수정
+          sql7 = 'UPDATE User_Article SET user_article_like = 0 WHERE article_id = %s AND user_id = %s'
+          cur.execute(sql7,(article_id,user_id))
+          conn.commit()
+
+        # 결과값 전송
+          return Response_Like_Scrap(status=201,message="좋아요 취소 성공", data=article_like)
+      else:
+        # 기사의 좋아요 수 1 증가
+        article_like += 1
+        sql6 = 'UPDATE Article SET article_like = %s WHERE article_id = %s'
+        cur.execute(sql6,(article_like, article_id))
+        conn.commit()
+
+        # User_Article 테이블에 해당 행 수정
+        sql7 = 'UPDATE User_Article SET user_article_like = 1 WHERE article_id = %s AND user_id = %s'
+        cur.execute(sql7,(article_id,user_id))
+        conn.commit()
+        return Response_Like_Scrap(status=201,message="좋아요 성공", data=article_like)
+  except Exception as e:
+    print(e)
+    return Response_Like_Scrap(status=404,message="좋아요 실패", data=0)
+  finally:
+    cur.close()
+    conn.close()
+
+# 좋아요한 뉴스 보여주는 API
+@router.get("/likeNewsLists")
+def likeNewsLists(data: My_News_Lists):
+  token = {"access_token": data.access_token, "refresh_token": data.refresh_token}
+
+  payload = expirecheck(token)
+  # 이메일
+  email = payload.data
+  conn, cur = mysql_create_session()
+  try:
+    # 유저 정보 검색
+    sql1 = 'SELECT user_id FROM Users WHERE user_email = %s'
+    cur.execute(sql1,(email,))
+    user_id = cur.fetchone()['user_id']
+
+    # 좋아요한 뉴스 검색
+    sql2 = 'SELECT * FROM Article a JOIN User_Article ua ON ua.article_id = a.article_id WHERE ua.user_id = %s AND ua.user_article_like = 1'
+    cur.execute(sql2, (user_id,))
+    result = cur.fetchall()
+    return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
+  except Exception as e:
+    print(e)
+    return Response_NewsList(status=404, message="뉴스 조회 실패", data=[])
+  finally:
+    cur.close()
+    conn.close()
+
+# 뉴스 스크랩 API (토글처럼 스크랩, 스크랩 취소)
+@router.post("/scrap", response_model=Response_Like_Scrap)
+def scrapNews(data: My_News):
+  token = {"access_token": data.access_token, "refresh_token": data.refresh_token}
+  # 뉴스 id
+  article_id = data.article_id
+  payload = expirecheck(token)
+
+  # 회원 email
+  email = payload.data
+  conn, cur = mysql_create_session()
+  try:
+    # 유저 id 검색
+    sql1 = 'SELECT user_id FROM Users WHERE user_email = %s'
+    cur.execute(sql1,(email))
+    user_id = cur.fetchone()['user_id']
+
+    # User_Article 테이블에 해당 기사에 대한 회원이 스크랩 했는지 확인 (안했으면 스크랩 했으면 스크랩 취소)
+    sql2 = 'SELECT * FROM User_Article WHERE article_id = %s AND user_id = %s'
+    cur.execute(sql2, (article_id,user_id))
+    article_result = cur.fetchone()
+    print(article_result)
+    # Article 테이블에서 스크랩 수 검색
+    sql3 = 'SELECT article_scrap FROM Article WHERE article_id = %s'
+    cur.execute(sql3,(article_id,))
+    article_scrap = cur.fetchone()['article_scrap']
+    # 스크랩과 좋아요가 같은 테이블에서 다루기 때문에 if문으로 검증
+    if article_result == None:
+      # 기사의 스크랩 수 1 증가
+      article_scrap += 1
+      sql4 = 'UPDATE Article SET article_scrap = %s WHERE article_id = %s'
+      cur.execute(sql4,(article_scrap, article_id))
+      conn.commit()
+      # User_Article 테이블에 기사와 회원 id 추가 + 스크랩 1로 수정
+      sql5 = 'INSERT INTO User_Article (article_id, user_id, user_article_scrap) VALUES (%s,%s,1)' 
+      cur.execute(sql5,(article_id,user_id))
+      conn.commit()
+      # 결과값 전송
+      return Response_Like_Scrap(status=201,message="스크랩 성공", data=article_scrap)
+    else: # 스크랩이 존재하거나 스크랩 상태일때
+      # 스크랩 상태이면 스크랩 취소하기
+      if article_result['user_article_scrap'] == 1:
+        # 기사의 스크랩 수 1 감소
+          article_scrap -= 1
+          sql6 = 'UPDATE Article SET article_like = %s WHERE article_id = %s'
+          cur.execute(sql6,(article_scrap, article_id))
+          conn.commit()
+
+        # User_Article 테이블에 해당 행 수정
+          sql7 = 'UPDATE User_Article SET user_article_scrap = 0 WHERE article_id = %s AND user_id = %s'
+          cur.execute(sql7,(article_id,user_id))
+          conn.commit()
+
+        # 결과값 전송
+          return Response_Like_Scrap(status=201,message="스크랩 취소 성공", data=article_scrap)
+      else:
+        # 기사의 스크랩 수 1 증가
+        article_scrap += 1
+        sql6 = 'UPDATE Article SET article_scrap = %s WHERE article_id = %s'
+        cur.execute(sql6,(article_scrap, article_id))
+        conn.commit()
+
+        # User_Article 테이블에 해당 행 수정
+        sql7 = 'UPDATE User_Article SET user_article_scrap = 1 WHERE article_id = %s AND user_id = %s'
+        cur.execute(sql7,(article_id,user_id))
+        conn.commit()
+        return Response_Like_Scrap(status=201,message="스크랩 성공", data=article_scrap)
+  except Exception as e:
+    print(e)
+    return Response_Like_Scrap(status=404,message="스크랩 실패", data=0)
+  finally:
+    cur.close()
+    conn.close()
+
+# 스크랩한 뉴스 보여주는 API
+@router.get("/scrapNewsLists")
+def scrapNewsLists(data: My_News_Lists):
+  token = {"access_token": data.access_token, "refresh_token": data.refresh_token}
+
+  payload = expirecheck(token)
+  # 이메일
+  email = payload.data
+  conn, cur = mysql_create_session()
+  try:
+    # 유저 정보 검색
+    sql1 = 'SELECT user_id FROM Users WHERE user_email = %s'
+    cur.execute(sql1,(email,))
+    user_id = cur.fetchone()['user_id']
+
+    # 스크랩한 뉴스 검색
+    sql2 = 'SELECT * FROM Article a JOIN User_Article ua ON ua.article_id = a.article_id WHERE ua.user_id = %s AND ua.user_article_scrap = 1'
+    cur.execute(sql2, (user_id,))
+    result = cur.fetchall()
+    return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
+  except Exception as e:
+    print(e)
+    return Response_NewsList(status=404, message="뉴스 조회 실패", data=[])
+  finally:
+    cur.close()
+    conn.close()

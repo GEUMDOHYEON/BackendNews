@@ -38,3 +38,17 @@ class Response_NewsTitle(BaseModel):
   status:int
   message:str
   data: List[News_title]
+
+class My_News(BaseModel):
+  access_token:str
+  refresh_token:str
+  article_id:int
+
+class Response_Like_Scrap(BaseModel):
+  status:int
+  message:str
+  data: int
+
+class My_News_Lists(BaseModel):
+  access_token:str
+  refresh_token:str

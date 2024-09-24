@@ -6,13 +6,13 @@ from database import mysql_create_session
 from tokens import create_token
 from schemas.user import *
 
+router = APIRouter()
+
 # /user에 접속후 api
 router = APIRouter(	
     prefix="/users",
     tags=["users"]
 )
-
-router = APIRouter()
 
 # 환경변수 이용을 위한 전역변수
 BASE_DIR=os.path.dirname(os.path.abspath(__file__))
@@ -21,9 +21,9 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 
 #access_token 만료(분)
-ACCESS_TOKEN_EXPIRE_MINUTES = os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"]
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"])
 #refresh_token 만료(분)
-REFRESH_TOKEN_EXPIRE_MINUTES = os.environ["REFRESH_TOKEN_EXPIRE_MINUTES"]
+REFRESH_TOKEN_EXPIRE_MINUTES = int(os.environ["REFRESH_TOKEN_EXPIRE_MINUTES"])
 
 @router.get("/")
 def tmp_user():
@@ -42,7 +42,7 @@ def register(user:Register_User):
   hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
 
   try:
-    sql = 'INSERT INTO users(email, user_name, password,user_number,nickname,user_age) VALUES (%s, %s, %s, %s, %s, %s)'
+    sql = 'INSERT INTO users(user_email, user_name, user_password,user_number,user_nickname,user_age) VALUES (%s, %s, %s, %s, %s, %s)'
     cur.execute(sql,(user_email,user_name,hashed_password,user_number,user_nickname,user_age))
     conn.commit()
     return Response_Register(status=201, message="회원가입 성공")
@@ -63,7 +63,7 @@ def login(user:Login_User):
   user_id, password = user_dict.values()
 
   try:
-    sql = 'SELECT * FROM users WHERE email = %s'
+    sql = 'SELECT * FROM users WHERE user_email = %s'
     cur.execute(sql,(user_id))
     #쿼리 결과의 첫번째 행
     row = cur.fetchone()
@@ -71,18 +71,18 @@ def login(user:Login_User):
     #결과가 없을 경우
     if not row:
       #아이디 없는 로그 띄우지 않음(보안정책)
-      return Response_Login(status=400, message="로그인 실패")
+      return Response_Login(status=400, message="로그인 실패", data={})
     
     #비밀번호 해싱후 체크
-    if bcrypt.checkpw(password.encode('utf-8'), row['passwd'].encode('utf-8')):
-      access_token = create_token(data={"sub":row['emial'],"nick":row['nickname'],"type":"access_token"},expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES)
-      refresh_token = create_token(data={"sub":row["email"],"type":"refresh_token"},expires_delta=REFRESH_TOKEN_EXPIRE_MINUTES)
+    if bcrypt.checkpw(password.encode('utf-8'), row['user_password'].encode('utf-8')):
+      access_token = create_token(data={"sub":row['user_email'],"nick":row['user_nickname'],"type":"access_token"},expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES)
+      refresh_token = create_token(data={"sub":row["user_email"],"type":"refresh_token"},expires_delta=REFRESH_TOKEN_EXPIRE_MINUTES)
 
 
       #리턴 값 data안에 일단 닉네임 넣음
-      return Response_Login(status=201, message="로그인 성공",data={"access_token":access_token,"refresh_token":refresh_token,"nickname":row['nickname']})
+      return Response_Login(status=201, message="로그인 성공",data={"access_token":access_token,"refresh_token":refresh_token,"nickname":row['user_nickname']})
     else:
-      return Response_Login(status=400,message="로그인 실패")
+      return Response_Login(status=400,message="로그인 실패",data={})
   finally:
     conn.close()
     cur.close()
