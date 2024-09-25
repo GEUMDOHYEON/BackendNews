@@ -26,4 +26,4 @@ class Response_Register(BaseModel):
 class Response_Login(BaseModel):
   status:int
   message:str
-  data:str
+  data:dict
