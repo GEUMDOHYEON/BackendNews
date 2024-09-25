@@ -58,6 +58,9 @@ def register(user:Register_User):
 #로그인 API
 @router.post("/login", response_model=Response_Login, response_model_exclude_unset=True)
 def login(user:Login_User):
+  """
+  로그인시 정보를 확인해 토큰을 반환합니다.
+  """
   conn,cur = mysql_create_session()
   user_dict = user.model_dump()
   user_id, password = user_dict.values()
