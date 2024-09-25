@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
   scheduler.add_job(get_news_from_api, 'interval', hours=1)
   scheduler.start()
   # 서버 실행 후 곧바로 뉴스 스크래핑 작업 진행
-  get_news_from_api()
+  # get_news_from_api()
 
   yield
 
@@ -69,7 +69,3 @@ app.include_router(board.router)
 @app.get("/")
 def helloWorld():
   return {"HELLO WORLD"}
-
-@app.get("/test")
-def test():
-  return {"test.."}
