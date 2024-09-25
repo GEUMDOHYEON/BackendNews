@@ -1,6 +1,7 @@
 import os
 import sys
 from fastapi import APIRouter, Depends
+from fastapi.security import OAuth2PasswordBearer
 from database import mysql_create_session
 from dotenv import load_dotenv
 from schemas.news import *
@@ -14,6 +15,9 @@ router = APIRouter(
   prefix="/news",
   tags=["news"]
 )
+
+# 헤더에 토큰 값 가져오기 위한 객체
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # 뉴스 목록 가져오는 API(keyword별 itemCount 만큼 조회)
 @router.get("/getNewsList/{keyword}/{itemCount}", response_model=Response_NewsList)
@@ -74,8 +78,9 @@ def highestViews():
   today = date.today()
   try:
     # 오늘 기준 조회수 높은 순으로 10개씩 조회
-    sql = 'SELECT article_id, article_title FROM Article WHERE article_createat = %s ORDER BY article_views DESC, article_id DESC limit 10'
-    cur.execute(sql, (today))
+    count = 10
+    sql = 'SELECT article_id, article_title FROM Article WHERE article_createat = %s ORDER BY article_views DESC, article_id DESC limit %s'
+    cur.execute(sql, (today, count))
     result = cur.fetchall()
     if(len(result) == 10):
       return Response_NewsTitle(status=200, message="조회수 별 뉴스 조회 성공", data=result)
@@ -89,8 +94,8 @@ def highestViews():
 
 # 뉴스 좋아요 API (토글처럼 좋아요, 좋아요 취소)
 @router.post("/like", response_model=Response_Like_Scrap)
-def likeNews(data: My_News):
-  token = {"access_token": data.access_token, "refresh_token": data.refresh_token}
+def likeNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
+  token = {"access_token": access_token, "refresh_token": data.refresh_token}
   # 뉴스 id
   article_id = data.article_id
   payload = expirecheck(token)
@@ -108,7 +113,7 @@ def likeNews(data: My_News):
     sql2 = 'SELECT * FROM User_Article WHERE article_id = %s AND user_id = %s'
     cur.execute(sql2, (article_id,user_id))
     article_result = cur.fetchone()
-    print(article_result)
+    
     # Article 테이블에서 좋아요 수 검색
     sql3 = 'SELECT article_like FROM Article WHERE article_id = %s'
     cur.execute(sql3,(article_id,))
@@ -163,8 +168,8 @@ def likeNews(data: My_News):
 
 # 좋아요한 뉴스 보여주는 API
 @router.get("/likeNewsLists")
-def likeNewsLists(data: My_News_Lists):
-  token = {"access_token": data.access_token, "refresh_token": data.refresh_token}
+def likeNewsLists(data: My_News_Lists, access_token: str = Depends(oauth2_scheme)):
+  token = {"access_token": access_token, "refresh_token": data.refresh_token}
 
   payload = expirecheck(token)
   # 이메일
@@ -190,8 +195,8 @@ def likeNewsLists(data: My_News_Lists):
 
 # 뉴스 스크랩 API (토글처럼 스크랩, 스크랩 취소)
 @router.post("/scrap", response_model=Response_Like_Scrap)
-def scrapNews(data: My_News):
-  token = {"access_token": data.access_token, "refresh_token": data.refresh_token}
+def scrapNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
+  token = {"access_token": access_token, "refresh_token": data.refresh_token}
   # 뉴스 id
   article_id = data.article_id
   payload = expirecheck(token)
@@ -209,7 +214,7 @@ def scrapNews(data: My_News):
     sql2 = 'SELECT * FROM User_Article WHERE article_id = %s AND user_id = %s'
     cur.execute(sql2, (article_id,user_id))
     article_result = cur.fetchone()
-    print(article_result)
+
     # Article 테이블에서 스크랩 수 검색
     sql3 = 'SELECT article_scrap FROM Article WHERE article_id = %s'
     cur.execute(sql3,(article_id,))
@@ -264,8 +269,8 @@ def scrapNews(data: My_News):
 
 # 스크랩한 뉴스 보여주는 API
 @router.get("/scrapNewsLists")
-def scrapNewsLists(data: My_News_Lists):
-  token = {"access_token": data.access_token, "refresh_token": data.refresh_token}
+def scrapNewsLists(data: My_News_Lists, access_token: str = Depends(oauth2_scheme)):
+  token = {"access_token": access_token, "refresh_token": data.refresh_token}
 
   payload = expirecheck(token)
   # 이메일
