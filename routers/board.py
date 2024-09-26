@@ -26,9 +26,6 @@ async def upload(postUpload_data : PostUpload_Model):
   # mysql 과 상호작용하기 위해 연결해주는 cur 객체
   conn, cur = mysql_create_session()
   
-  # 토큰 디코딩
-  token_Info = jwt.decode()
-  
   # 유저 정보 - 토큰 디코딩 후 - 아이디, 닉네임 가져오기
   user_nickname = jwt.decode(postUpload_data.access_token, SECRET_KEY, argorithms = [ALGORITHM])
   
@@ -40,7 +37,6 @@ async def upload(postUpload_data : PostUpload_Model):
   community_createat = now.strftime("%Y-%m-%d")
   
   try:
-    # 
     sql = "INSERT INTO `USER`.`Community` (`community_title`, `user_nickname`, `community_content`, `community_createat`) VALUES (%s, %s, %s, %s);"
     cur.execute(sql,(community_title,user_nickname,community_content,community_createat))
     conn.commit()
@@ -50,9 +46,10 @@ async def upload(postUpload_data : PostUpload_Model):
     raise HTTPException(status_code=400, detail=str(e))
   finally:
     conn.close()
-  
-  
+    
   return {"업로드 성공"}
+
+# 게시판 글 불러오기
 
 # 게시판 글 삭제
 @router.post("/postRemove")
@@ -65,4 +62,3 @@ async def remove():
 async def update():
   return {"수정 성공"}
 
-# 게시판 글 불러오기
