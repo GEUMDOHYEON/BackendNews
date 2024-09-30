@@ -27,6 +27,17 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 CLIENT_ID = os.environ['CLIENT_ID']
 CLIENT_SECRET = os.environ['CLIENT_SECRET']
 
+#크롬 드라이버 위치
+EXCUTABLE_PATH = os.environ['EXCUTABLE_PATH']
+
+# 크롬 옵션 드라이버 설정
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument("--headless")
+
+# linux 환경에서 필요한 option
+chrome_options.add_argument('--no-sandbox')
+chrome_options.add_argument('--disable-dev-shm-usage')
+
 # 뉴스 키워드 
 KEYWORDS = ["정치", "과학", "스포츠", "사회", "시사", "경제", "생활"]
 
@@ -123,7 +134,8 @@ def crawl_article(url):
 
 # 동적 페이지 크롤링
 def crawl_dynamic_article(url):
-    driver = webdriver.Chrome() 
+    # excutable_path는 chromdriver가 위치한 경로를 적어주면 된다.
+    driver = webdriver.Chrome(excutable_path =EXCUTABLE_PATH,chrome_options=chrome_options)
 
     driver.get(url)
 

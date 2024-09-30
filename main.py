@@ -19,7 +19,8 @@ async def lifespan(app: FastAPI):
   scheduler.add_job(get_news_from_api, 'interval', hours=1)
   scheduler.start()
   # 서버 실행 후 곧바로 뉴스 스크래핑 작업 진행
-  # get_news_from_api()
+  # 잠시 켜둠 '다시 주석처리'
+  get_news_from_api()
 
   yield
 
@@ -52,9 +53,11 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     # 허용 ip
-    allow_origins=origins,
+    #allow_origins=origins,
+    #일단 열어둠
+    allow_origins=["*"],
     # 인증, 쿠키
-    allow_credentials=True,
+    #allow_credentials=True,
     # 허용 메소드
     allow_methods=["GET","POST","PUT","DELETE"],
     # 허용 헤더

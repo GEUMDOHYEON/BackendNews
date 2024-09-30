@@ -42,7 +42,7 @@ def register(user:Register_User):
   hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
 
   try:
-    sql = 'INSERT INTO users(user_email, user_name, user_password,user_number,user_nickname,user_age) VALUES (%s, %s, %s, %s, %s, %s)'
+    sql = 'INSERT INTO Users(user_email, user_name, user_password,user_number,user_nickname,user_age) VALUES (%s, %s, %s, %s, %s, %s)'
     cur.execute(sql,(user_email,user_name,hashed_password,user_number,user_nickname,user_age))
     conn.commit()
     return Response_Register(status=201, message="회원가입 성공")
@@ -66,7 +66,7 @@ def login(user:Login_User):
   user_id, password = user_dict.values()
 
   try:
-    sql = 'SELECT * FROM users WHERE user_email = %s'
+    sql = 'SELECT * FROM Users WHERE user_email = %s'
     cur.execute(sql,(user_id))
     #쿼리 결과의 첫번째 행
     row = cur.fetchone()
