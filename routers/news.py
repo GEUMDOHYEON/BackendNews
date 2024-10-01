@@ -37,7 +37,7 @@ def getNewsList(keyword: str, itemCount: int):
       result = cur.fetchall()
       return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
   except Exception as e:
-    return Response_NewsList(status=404, message="뉴스 조회 실패",data=[])
+    raise HTTPException(status_code=404, detail="뉴스 조회 실패")
   finally:
     cur.close()
     conn.close()
@@ -63,10 +63,10 @@ def getNews(news_id:int):
     cur.execute(sql3, (article_id,))
     result = cur.fetchall()
     if not result:
-      return Response_News(status=404, message="뉴스 조회 실패", data=[])
+      raise HTTPException(status_code=404, detail="뉴스 조회 실패")
     return Response_News(status=200, message="뉴스 조회 성공", data=result)
   except Exception as e:
-    return Response_News(status=404, message="뉴스 조회 실패", data=[])
+    raise HTTPException(status_code=404, detail="뉴스 조회 실패")
   finally:
     cur.close()
     conn.close()
@@ -85,9 +85,9 @@ def highestViews():
     if(len(result) == 10):
       return Response_NewsTitle(status=200, message="조회수 별 뉴스 조회 성공", data=result)
     else:
-      return Response_NewsTitle(status=404, message="오늘의 뉴스가 존재하지 않습니다.",data=[])
+      raise HTTPException(status_code=404, detail="오늘의 뉴스가 존재하지 않습니다.")
   except Exception as e:
-    return Response_NewsTitle(status=401, message="조회수 별 뉴스 조회 실패", data=[])
+    raise HTTPException(status_code=404, detail="조회수 별 뉴스 조회 실패")
   finally:
     cur.close()
     conn.close()
@@ -95,10 +95,9 @@ def highestViews():
 # 뉴스 좋아요 API (토글처럼 좋아요, 좋아요 취소)
 @router.post("/like", response_model=Response_Like_Scrap)
 def likeNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
-  token = {"access_token": access_token, "refresh_token": data.refresh_token}
   # 뉴스 id
   article_id = data.article_id
-  payload = access_expirecheck(token)
+  payload = access_expirecheck(access_token)
 
   # 회원 email
   email = payload['email']
@@ -161,17 +160,15 @@ def likeNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
         return Response_Like_Scrap(status=201,message="좋아요 성공", data=article_like)
   except Exception as e:
     print(e)
-    return Response_Like_Scrap(status=404,message="좋아요 실패", data=0)
+    raise HTTPException(status_code=404, detail="좋아요 실패")
   finally:
     cur.close()
     conn.close()
 
 # 좋아요한 뉴스 보여주는 API
 @router.get("/likeNewsLists")
-def likeNewsLists(data: My_News_Lists, access_token: str = Depends(oauth2_scheme)):
-  token = {"access_token": access_token, "refresh_token": data.refresh_token}
-
-  payload = access_expirecheck(token)
+def likeNewsLists(access_token: str = Depends(oauth2_scheme)):
+  payload = access_expirecheck(access_token)
   # 이메일
   email = payload['email']
   conn, cur = mysql_create_session()
@@ -188,7 +185,7 @@ def likeNewsLists(data: My_News_Lists, access_token: str = Depends(oauth2_scheme
     return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
   except Exception as e:
     print(e)
-    return Response_NewsList(status=404, message="뉴스 조회 실패", data=[])
+    raise HTTPException(status_code=404, detail="뉴스 조회 실패")
   finally:
     cur.close()
     conn.close()
@@ -196,10 +193,9 @@ def likeNewsLists(data: My_News_Lists, access_token: str = Depends(oauth2_scheme
 # 뉴스 스크랩 API (토글처럼 스크랩, 스크랩 취소)
 @router.post("/scrap", response_model=Response_Like_Scrap)
 def scrapNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
-  token = {"access_token": access_token, "refresh_token": data.refresh_token}
   # 뉴스 id
   article_id = data.article_id
-  payload = access_expirecheck(token)
+  payload = access_expirecheck(access_token)
 
   # 회원 email
   email = payload['email']
@@ -262,17 +258,16 @@ def scrapNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
         return Response_Like_Scrap(status=201,message="스크랩 성공", data=article_scrap)
   except Exception as e:
     print(e)
-    return Response_Like_Scrap(status=404,message="스크랩 실패", data=0)
+    raise HTTPException(status_code=404, detail="스크랩 실패")
   finally:
     cur.close()
     conn.close()
 
 # 스크랩한 뉴스 보여주는 API
 @router.get("/scrapNewsLists")
-def scrapNewsLists(data: My_News_Lists, access_token: str = Depends(oauth2_scheme)):
-  token = {"access_token": access_token, "refresh_token": data.refresh_token}
+def scrapNewsLists(access_token: str = Depends(oauth2_scheme)):
 
-  payload = access_expirecheck(token)
+  payload = access_expirecheck(access_token)
   # 이메일
   email = payload['email']
   conn, cur = mysql_create_session()
@@ -289,7 +284,7 @@ def scrapNewsLists(data: My_News_Lists, access_token: str = Depends(oauth2_schem
     return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
   except Exception as e:
     print(e)
-    return Response_NewsList(status=404, message="뉴스 조회 실패", data=[])
+    raise HTTPException(status_code=404, detail="뉴스 조회 실패")
   finally:
     cur.close()
     conn.close()

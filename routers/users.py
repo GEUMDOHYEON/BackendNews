@@ -74,11 +74,11 @@ def login(user:Login_User):
   """
   conn,cur = mysql_create_session()
   user_dict = user.model_dump()
-  user_id, password = user_dict.values()
+  user_email, password = user_dict.values()
 
   try:
     sql = 'SELECT * FROM Users WHERE user_email = %s'
-    cur.execute(sql,(user_id))
+    cur.execute(sql,(user_email))
     #쿼리 결과의 첫번째 행
     row = cur.fetchone()
 
@@ -103,7 +103,7 @@ def login(user:Login_User):
 
 
 # 리프레쉬 토큰 만료 확인 및 엑세스 토큰 재발급 API
-@router.get("/reissue", response_model=Response_Reissue, response_model_exclude_unset=True)
+@router.post("/reissue", response_model=Response_Reissue, response_model_exclude_unset=True)
 def reissue(refresh:Refresh_Token):
   """
   리프레쉬 토큰 만료를 확인하고 엑세스 토큰을 재발급합니다
@@ -112,12 +112,12 @@ def reissue(refresh:Refresh_Token):
   try:
     #refresh_token 만료 확인
     payload = jwt.decode(refresh['refresh_token'], SECRET_KEY, algorithms=[ALGORITHM])
-    user_id = payload.get('sub')
+    user_email = payload.get('sub')
 
     try:
       conn, cur = mysql_create_session()
       sql = "SELECT * FROM Users WHERE user_email = %s"
-      cur.execute(sql,(user_id))
+      cur.execute(sql,(user_email))
       row = cur.fetchone()
 
       if not row:
