@@ -59,7 +59,7 @@ def register(user:Register_User):
     return Response_Register(status=201, message="회원가입 성공")
   except Exception as e:
     conn.rollback()
-    return Response_Register(status=400, message="회원가입 실패")
+    raise HTTPException(status_code=404, detail="회원가입 실패")
   finally:
     conn.close()
     cur.close()
@@ -85,7 +85,7 @@ def login(user:Login_User):
     #결과가 없을 경우
     if not row:
       #아이디 없는 로그 띄우지 않음(보안정책)
-      return Response_Login(status=400, message="로그인 실패", data={})
+      raise HTTPException(status_code=404, detail="로그인 실패")
     
     #비밀번호 해싱후 체크
     if bcrypt.checkpw(password.encode('utf-8'), row['user_password'].encode('utf-8')):
@@ -96,7 +96,7 @@ def login(user:Login_User):
       #리턴 값 data안에 일단 닉네임 넣음
       return Response_Login(status=201, message="로그인 성공",data={"access_token":access_token,"refresh_token":refresh_token,"nickname":row['user_nickname']})
     else:
-      return Response_Login(status=400,message="로그인 실패",data={})
+      raise HTTPException(status_code=404, detail="로그인 실패")
   finally:
     conn.close()
     cur.close()
