@@ -104,7 +104,7 @@ def login(user:Login_User):
 
 # 리프레쉬 토큰 만료 확인 및 엑세스 토큰 재발급 API
 @router.get("/reissue", response_model=Response_Reissue, response_model_exclude_unset=True)
-def login(refresh:Refresh_Token):
+def reissue(refresh:Refresh_Token):
   """
   리프레쉬 토큰 만료를 확인하고 엑세스 토큰을 재발급합니다
   """
