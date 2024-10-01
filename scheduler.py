@@ -60,7 +60,7 @@ def get_news_from_api():
                 response_body = response.read()
                 response_dict = json.loads(response_body.decode('utf-8'))
                 items = response_dict['items']
-                print(keyword)
+                #print(keyword)
                 # 네이버 뉴스API를 통해 가져온 결과값(링크, 제목, 생성일)
                 for item in items:
                     print(item['title'])

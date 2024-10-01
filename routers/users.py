@@ -1,10 +1,21 @@
 from fastapi import APIRouter
 import os
 from dotenv import load_dotenv
+from fastapi import HTTPException
 import bcrypt
+import jwt
 from database import mysql_create_session
 from tokens import create_token
 from schemas.user import *
+from schemas.token import *
+
+#jwt에 필요한 전역변수
+SECRET_KEY = os.environ["SECRET_KEY"]
+#jwt 알고리즘
+ALGORITHM = os.environ["ALGORITHM"]
+#access_token 만료(분)
+ACCESS_TOKEN_EXPIRE_MINUTES = os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"]
+
 
 router = APIRouter()
 
@@ -56,7 +67,7 @@ def register(user:Register_User):
 
 
 #로그인 API
-@router.post("/login", response_model=Response_Login, response_model_exclude_unset=True)
+@router.post("/login", response_model=Response_Login)
 def login(user:Login_User):
   """
   로그인시 정보를 확인해 토큰을 반환합니다.
@@ -89,3 +100,60 @@ def login(user:Login_User):
   finally:
     conn.close()
     cur.close()
+
+
+# 리프레쉬 토큰 만료 확인 및 엑세스 토큰 재발급 API
+@router.get("/reissue", response_model=Response_Reissue, response_model_exclude_unset=True)
+def reissue(refresh:Refresh_Token):
+  """
+  리프레쉬 토큰 만료를 확인하고 엑세스 토큰을 재발급합니다
+  """
+
+  try:
+    #refresh_token 만료 확인
+    payload = jwt.decode(refresh['refresh_token'], SECRET_KEY, algorithms=[ALGORITHM])
+    user_id = payload.get('sub')
+
+    try:
+      conn, cur = mysql_create_session()
+      sql = "SELECT * FROM Users WHERE user_email = %s"
+      cur.execute(sql,(user_id))
+      row = cur.fetchone()
+
+      if not row:
+        raise HTTPException(status_code=401,detail="id확인불가")
+      
+      # 새로운 access토큰 발급
+      new_access_token = create_token(data={"sub":row['user_email'],"nick":row['user_nickname'],"type":"access_token"},expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+      return Response_Reissue(status=200,message="엑세스토큰 발급",access_token=new_access_token)
+    
+    except:
+      raise HTTPException(status_code=401,detail="id확인불가")
+    
+    finally:
+      conn.close()
+      cur.close()
+
+  except:
+    raise HTTPException(status_code=401,detail="access_token만료")
+
+
+
+
+# 개인정보 변경 API
+@router.post("/changeinfo", response_model=Response_Login)
+def changeinfo(user:Change_User):
+  """
+  유저 정보를 변경합니다.
+  닉네임 : 100
+  전화번호 : 200
+  비밀번호 : 300
+  """
+  conn,cur = mysql_create_session()
+  user_dict = user.model_dump()
+  status, data = user_dict.values()
+  
+  # 변경중...
+
+
