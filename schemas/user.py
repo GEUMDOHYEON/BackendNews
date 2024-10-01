@@ -15,6 +15,10 @@ class Login_User(BaseModel):
   email:str
   password:str
 
+# 유저 개인정보 수정
+class Change_User(BaseModel):
+  status:int
+  data:str
 
 #회원가입 반환 DTO
 class Response_Register(BaseModel):
