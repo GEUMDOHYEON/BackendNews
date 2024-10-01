@@ -1,20 +1,16 @@
 from pydantic import BaseModel
 
-# 토큰들 DTO
-class Tokens(BaseModel):
+# access_토큰 DTO
+class Access_Token(BaseModel):
     access_token:str
+
+# refresh_토큰 DTO
+class Refresh_Token(BaseModel):
     refresh_token:str
 
-
-# 토큰반환 DTO
-class Response_Tokens(BaseModel):
+# access_토큰 재발급 DTO
+class Response_Reissue(BaseModel):
     status:int
     message:str
-    data:str
+    access_token:str
 
-
-# access토큰반환 DTO
-class Response_Access_Token(BaseModel):
-    status:int
-    message:str
-    data:str

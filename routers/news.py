@@ -98,10 +98,10 @@ def likeNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
   token = {"access_token": access_token, "refresh_token": data.refresh_token}
   # 뉴스 id
   article_id = data.article_id
-  payload = expirecheck(token)
+  payload = access_expirecheck(token)
 
   # 회원 email
-  email = payload.data
+  email = payload['email']
   conn, cur = mysql_create_session()
   try:
     # 유저 id 검색
@@ -171,9 +171,9 @@ def likeNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
 def likeNewsLists(data: My_News_Lists, access_token: str = Depends(oauth2_scheme)):
   token = {"access_token": access_token, "refresh_token": data.refresh_token}
 
-  payload = expirecheck(token)
+  payload = access_expirecheck(token)
   # 이메일
-  email = payload.data
+  email = payload['email']
   conn, cur = mysql_create_session()
   try:
     # 유저 정보 검색
@@ -199,10 +199,10 @@ def scrapNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
   token = {"access_token": access_token, "refresh_token": data.refresh_token}
   # 뉴스 id
   article_id = data.article_id
-  payload = expirecheck(token)
+  payload = access_expirecheck(token)
 
   # 회원 email
-  email = payload.data
+  email = payload['email']
   conn, cur = mysql_create_session()
   try:
     # 유저 id 검색
@@ -272,9 +272,9 @@ def scrapNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
 def scrapNewsLists(data: My_News_Lists, access_token: str = Depends(oauth2_scheme)):
   token = {"access_token": access_token, "refresh_token": data.refresh_token}
 
-  payload = expirecheck(token)
+  payload = access_expirecheck(token)
   # 이메일
-  email = payload.data
+  email = payload['email']
   conn, cur = mysql_create_session()
   try:
     # 유저 정보 검색
