@@ -362,7 +362,9 @@ def changeComment(data: Chagnge_Comment, access_token: str = Depends(oauth2_sche
   today = date.today()
 
   # 사용자 검증
-  access_expirecheck(access_token)
+  payload = access_expirecheck(access_token)
+  email = payload['email']
+  user_id = findUserID(email)
 
   # 수정사항
   comment_id = data.comment_id
@@ -370,8 +372,15 @@ def changeComment(data: Chagnge_Comment, access_token: str = Depends(oauth2_sche
 
   conn, cur = mysql_create_session()
   try:
-    sql = 'UPDATE Article_Comments SET comment_content = %s, comment_createat = %s WHERE comment_id = %s'
-    cur.execute(sql,(comment_content, today,comment_id))
+    sql1 = 'SELECT user_id FROM Article_Comments WHERE comment_id = %s'
+    cur.execute(sql1,(comment_id,))
+    result = cur.fetchone()
+
+    if result['user_id'] != user_id:
+      raise HTTPException(status_code=403, detail="유저 정보 불일치")
+    
+    sql2 = 'UPDATE Article_Comments SET comment_content = %s, comment_createat = %s WHERE comment_id = %s'
+    cur.execute(sql2,(comment_content, today,comment_id))
     conn.commit()
     return Response_Comment(status=201, message="댓글 수정 성공")
   except Exception as e:
@@ -386,14 +395,22 @@ def changeComment(data: Chagnge_Comment, access_token: str = Depends(oauth2_sche
 @router.delete("/deleteComment", response_model=Response_Comment)
 def deleteComment(data: Delete_Comment, access_token: str = Depends(oauth2_scheme)):
   # 사용자 검증
-  access_expirecheck(access_token)
+  payload = access_expirecheck(access_token)
+  email = payload['email']
+  user_id = findUserID(email)
 
-  commnet_id = data.comment_id
+  comment_id = data.comment_id
 
   conn, cur = mysql_create_session()
   try:
+    sql1 = 'SELECT user_id FROM Article_Comments WHERE comment_id = %s'
+    cur.execute(sql1,(comment_id,))
+    result = cur.fetchone()
+    if result['user_id'] != user_id:
+      raise HTTPException(status_code=403, detail="유저 정보 불일치")
+    
     sql = 'DELETE FROM Article_Comments WHERE comment_id = %s'
-    cur.execute(sql,(commnet_id))
+    cur.execute(sql,(comment_id))
     conn.commit()
     return Response_Comment(status=200, message="댓글 삭제 성공")
   except Exception as e:
