@@ -35,7 +35,7 @@ def create_token(data:dict, expires_delta: int | None = None):
 def access_expirecheck(data:Access_Token):
     try:
         #access_token 만료 확인
-        payload = jwt.decode(data['access_token'], SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(data, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get('sub')
         nickname = payload.get('nick')
         return {"email":email,"nickname":nickname}
