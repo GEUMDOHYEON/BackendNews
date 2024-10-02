@@ -1,6 +1,6 @@
 import os
 import sys
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from database import mysql_create_session
 from dotenv import load_dotenv
@@ -44,8 +44,23 @@ def getNewsList(keyword: str, itemCount: int):
 
 # 뉴스 세부정보 가져오는 API
 @router.get("/getNews/{news_id}", response_model=Response_News)
-def getNews(news_id:int):
+def getNews(news_id:int, request: Request):
+  # 비로그인 유저도 해당 API 이용하도록 request 이용
+  # request 헤더에서 토큰 추출
+  auth_header = request.headers.get("Authorization")
+  # Beaer 토큰 추출 후 유저 검사
+  if auth_header:
+    token_type, access_token = auth_header.split()  # Bearer 토큰 분리
+    if access_token:
+      payload = access_expirecheck(access_token)
+      # 이메일
+      email = payload['email']
+      user_id = findUserID(email)
+  else:
+    user_id = None
+
   conn,cur = mysql_create_session()
+
   try:
     # article_views 검색
     article_id = news_id
@@ -61,10 +76,27 @@ def getNews(news_id:int):
     # 뉴스 고유의 아이디를 기준으로 해당 뉴스 검색
     sql3 = 'SELECT * FROM Article WHERE article_id = %s'
     cur.execute(sql3, (article_id,))
-    result = cur.fetchall()
-    if not result:
+    news_result = cur.fetchone()
+
+    if not news_result:
       raise HTTPException(status_code=404, detail="뉴스 조회 실패")
-    return Response_News(status=200, message="뉴스 조회 성공", data=result)
+
+    # 해당 뉴스에 달린 댓글 검색 API
+    sql4 = 'SELECT ac.comment_id, ac.comment_content, ac.comment_createat, u.user_nickname, u.user_id FROM Article_Comments ac JOIN Article a ON ac.article_id = a.article_id JOIN Users u ON ac.user_id = u.user_id WHERE ac.article_id = %s'
+    cur.execute(sql4, (article_id))
+    comments_result = cur.fetchall()
+
+    # 로그인 유저의 댓글 판별
+    for comment in comments_result:
+      if comment['user_id'] == user_id:
+        comment['host'] = True
+      else:
+        comment['host'] = False
+    response_data = {
+      "news": news_result,
+      "comments": comments_result
+    }
+    return Response_News(status=200, message="뉴스 조회 성공", data=response_data)
   except Exception as e:
     raise HTTPException(status_code=404, detail="뉴스 조회 실패")
   finally:
@@ -104,9 +136,7 @@ def likeNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
   conn, cur = mysql_create_session()
   try:
     # 유저 id 검색
-    sql1 = 'SELECT user_id FROM Users WHERE user_email = %s'
-    cur.execute(sql1,(email))
-    user_id = cur.fetchone()['user_id']
+    user_id = findUserID(email)
 
     # User_Article 테이블에 해당 기사에 대한 회원이 좋아요 했는지 확인 (안했으면 좋아요 했으면 좋아요 취소)
     sql2 = 'SELECT * FROM User_Article WHERE article_id = %s AND user_id = %s'
@@ -166,7 +196,7 @@ def likeNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
     conn.close()
 
 # 좋아요한 뉴스 보여주는 API
-@router.get("/likeNewsLists")
+@router.get("/likeNewsLists", response_model=Response_NewsList)
 def likeNewsLists(access_token: str = Depends(oauth2_scheme)):
   payload = access_expirecheck(access_token)
   # 이메일
@@ -174,9 +204,7 @@ def likeNewsLists(access_token: str = Depends(oauth2_scheme)):
   conn, cur = mysql_create_session()
   try:
     # 유저 정보 검색
-    sql1 = 'SELECT user_id FROM Users WHERE user_email = %s'
-    cur.execute(sql1,(email,))
-    user_id = cur.fetchone()['user_id']
+    user_id = findUserID(email)
 
     # 좋아요한 뉴스 검색
     sql2 = 'SELECT * FROM Article a JOIN User_Article ua ON ua.article_id = a.article_id WHERE ua.user_id = %s AND ua.user_article_like = 1'
@@ -202,9 +230,7 @@ def scrapNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
   conn, cur = mysql_create_session()
   try:
     # 유저 id 검색
-    sql1 = 'SELECT user_id FROM Users WHERE user_email = %s'
-    cur.execute(sql1,(email))
-    user_id = cur.fetchone()['user_id']
+    user_id = findUserID(email)
 
     # User_Article 테이블에 해당 기사에 대한 회원이 스크랩 했는지 확인 (안했으면 스크랩 했으면 스크랩 취소)
     sql2 = 'SELECT * FROM User_Article WHERE article_id = %s AND user_id = %s'
@@ -264,7 +290,7 @@ def scrapNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
     conn.close()
 
 # 스크랩한 뉴스 보여주는 API
-@router.get("/scrapNewsLists")
+@router.get("/scrapNewsLists", response_model=Response_NewsList)
 def scrapNewsLists(access_token: str = Depends(oauth2_scheme)):
 
   payload = access_expirecheck(access_token)
@@ -273,10 +299,8 @@ def scrapNewsLists(access_token: str = Depends(oauth2_scheme)):
   conn, cur = mysql_create_session()
   try:
     # 유저 정보 검색
-    sql1 = 'SELECT user_id FROM Users WHERE user_email = %s'
-    cur.execute(sql1,(email,))
-    user_id = cur.fetchone()['user_id']
-
+    user_id = findUserID(email)
+    
     # 스크랩한 뉴스 검색
     sql2 = 'SELECT * FROM Article a JOIN User_Article ua ON ua.article_id = a.article_id WHERE ua.user_id = %s AND ua.user_article_scrap = 1'
     cur.execute(sql2, (user_id,))
@@ -285,6 +309,96 @@ def scrapNewsLists(access_token: str = Depends(oauth2_scheme)):
   except Exception as e:
     print(e)
     raise HTTPException(status_code=404, detail="뉴스 조회 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+# 유저 id 찾는 함수
+def findUserID(email):
+  conn, cur = mysql_create_session()
+
+  try:
+    sql1 = 'SELECT user_id FROM Users WHERE user_email = %s'
+    cur.execute(sql1,(email,))
+    user_id = cur.fetchone()['user_id']
+    return user_id
+  except Exception as e:
+    print(e)
+    raise HTTPException(status_code=404, detail="유저 조회 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+
+# 댓글 작성 api
+@router.post("/createComment", response_model=Response_Comment)
+def createComment(data: Create_Comment, access_token: str = Depends(oauth2_scheme)):
+  today = date.today()
+
+  # 사용자 검증
+  payload = access_expirecheck(access_token)
+  # 입력 사항
+  email = payload['email']
+  user_id = findUserID(email)
+  article_id = data.article_id
+  comment_content = data.comment_content
+
+  conn, cur = mysql_create_session()
+  try:
+    sql = 'INSERT INTO Article_Comments (user_id, article_id, comment_content, comment_createat) VALUES (%s, %s, %s, %s)'
+    cur.execute(sql,(user_id, article_id, comment_content, today))
+    conn.commit()
+    return Response_Comment(status=201, message="댓글 작성 성공")
+  except Exception as e:
+    print(e)
+    raise HTTPException(status_code=403, detail="댓글 작성 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+# 댓글 수정하는 API
+@router.post("/changeComment", response_model=Response_Comment)
+def changeComment(data: Chagnge_Comment, access_token: str = Depends(oauth2_scheme)):
+  today = date.today()
+
+  # 사용자 검증
+  access_expirecheck(access_token)
+
+  # 수정사항
+  comment_id = data.comment_id
+  comment_content = data.comment_content
+
+  conn, cur = mysql_create_session()
+  try:
+    sql = 'UPDATE Article_Comments SET comment_content = %s, comment_createat = %s WHERE comment_id = %s'
+    cur.execute(sql,(comment_content, today,comment_id))
+    conn.commit()
+    return Response_Comment(status=201, message="댓글 수정 성공")
+  except Exception as e:
+    print(e)
+    raise HTTPException(status_code=403, detail="댓글 수정 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+
+# 댓글 삭제 API
+@router.delete("/deleteComment", response_model=Response_Comment)
+def deleteComment(data: Delete_Comment, access_token: str = Depends(oauth2_scheme)):
+  # 사용자 검증
+  access_expirecheck(access_token)
+
+  commnet_id = data.comment_id
+
+  conn, cur = mysql_create_session()
+  try:
+    sql = 'DELETE FROM Article_Comments WHERE comment_id = %s'
+    cur.execute(sql,(commnet_id))
+    conn.commit()
+    return Response_Comment(status=200, message="댓글 삭제 성공")
+  except Exception as e:
+    # print(e)
+    raise HTTPException(status_code=403, detail="댓글 삭제 실패")
   finally:
     cur.close()
     conn.close()
