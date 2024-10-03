@@ -9,16 +9,6 @@ class News_card(BaseModel):
   article_content:str
   article_image:str
 
-class News_contents(BaseModel):
-  article_id:int
-  article_title:str
-  article_content:str
-  article_url:str
-  article_views:int
-  article_createat:datetime
-  article_like:int
-  article_image:str
-
 class News_title(BaseModel):
   article_id:int
   article_title:str
@@ -32,7 +22,7 @@ class Response_NewsList(BaseModel):
 class Response_News(BaseModel):
   status:int
   message:str
-  data: List[News_contents]
+  data: dict
 
 class Response_NewsTitle(BaseModel):
   status:int
@@ -46,3 +36,18 @@ class Response_Like_Scrap(BaseModel):
   status:int
   message:str
   data: int
+
+class Create_Comment(BaseModel):
+  article_id:int
+  comment_content:str
+
+class Response_Comment(BaseModel):
+  status:int
+  message:str
+
+class Chagnge_Comment(BaseModel):
+  comment_id: int
+  comment_content:str
+
+class Delete_Comment(BaseModel):
+  comment_id: int
