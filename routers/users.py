@@ -1,13 +1,15 @@
 from fastapi import APIRouter
+from fastapi.security import OAuth2PasswordBearer
 import os
 from dotenv import load_dotenv
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends, Request
 import bcrypt
 import jwt
 from database import mysql_create_session
-from tokens import create_token
+from tokens import *
 from schemas.user import *
 from schemas.token import *
+from routers.news import findUserID
 
 #jwt에 필요한 전역변수
 SECRET_KEY = os.environ["SECRET_KEY"]
@@ -15,6 +17,8 @@ SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = os.environ["ALGORITHM"]
 #access_token 만료(분)
 ACCESS_TOKEN_EXPIRE_MINUTES = os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"]
+# 헤더에 토큰 값 가져오기 위한 객체
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 router = APIRouter()
@@ -45,6 +49,9 @@ def tmp_user():
 #response_model_exclude_unset=True : 디폴트값은 제외
 @router.post("/register", response_model=Response_Register, response_model_exclude_unset=True)
 def register(user:Register_User):
+  """
+  이메일, 이름, 패스워드, 핸드폰번호, 닉네임, 나이를 입력받아 회원가입을 받습니다.
+  """
   conn,cur = mysql_create_session()
   user_dict = user.model_dump()
   user_email,user_password,user_name,user_number,user_nickname,user_age = user_dict.values()
@@ -66,16 +73,42 @@ def register(user:Register_User):
 
 
 
-#로그인 API
+#로그인/자동로그인 API
 @router.post("/login", response_model=Response_Login)
-def login(user:Login_User):
+def login(user:Login_User, request: Request):
   """
   로그인시 정보를 확인해 토큰을 반환합니다.
+  auto_token을 보낼 시 자동로그인 됩니다.
+  auto_token을 보낸 경우에도 email,password(공백) 데이터를 전송해야 합니다.
   """
-  conn,cur = mysql_create_session()
-  user_dict = user.model_dump()
-  user_email, password = user_dict.values()
 
+  # 자동로그인 확인
+  auto_login = False
+
+  # request 헤더에서 토큰 추출
+  auth_header = request.headers.get("Authorization")
+  # Beaer 토큰 추출 후 유저 검사
+  if auth_header:
+    token_type, auto_token = auth_header.split()  # Bearer 토큰 분리
+    if auto_token:
+      try:
+        #auto_token 확인
+        payload = jwt.decode(auto_token, SECRET_KEY, algorithms=[ALGORITHM])
+        # 이메일
+        user_email = payload.get('sub')
+        # auto_login 활성화
+        auto_login = True
+        # 공백 패스워드
+        password = ""
+      except:
+        raise HTTPException(status_code=401,detail="auto_token만료")
+      
+  else:
+    user_dict = user.model_dump()
+    user_email, password = user_dict.values()
+
+  conn,cur = mysql_create_session()
+  
   try:
     sql = 'SELECT * FROM Users WHERE user_email = %s'
     cur.execute(sql,(user_email))
@@ -87,8 +120,8 @@ def login(user:Login_User):
       #아이디 없는 로그 띄우지 않음(보안정책)
       raise HTTPException(status_code=404, detail="로그인 실패")
     
-    #비밀번호 해싱후 체크
-    if bcrypt.checkpw(password.encode('utf-8'), row['user_password'].encode('utf-8')):
+    #비밀번호 해싱후 체크 or auto_login == True
+    if auto_login or bcrypt.checkpw(password.encode('utf-8'), row['user_password'].encode('utf-8')):
       access_token = create_token(data={"sub":row['user_email'],"nick":row['user_nickname'],"type":"access_token"},expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES)
       refresh_token = create_token(data={"sub":row["user_email"],"type":"refresh_token"},expires_delta=REFRESH_TOKEN_EXPIRE_MINUTES)
 
@@ -106,7 +139,7 @@ def login(user:Login_User):
 @router.post("/reissue", response_model=Response_Reissue, response_model_exclude_unset=True)
 def reissue(refresh:Refresh_Token):
   """
-  리프레쉬 토큰 만료를 확인하고 엑세스 토큰을 재발급합니다
+  리프레쉬 토큰 만료를 확인하고 엑세스 토큰을 재발급합니다.
   """
 
   try:
@@ -142,18 +175,62 @@ def reissue(refresh:Refresh_Token):
 
 
 # 개인정보 변경 API
-@router.post("/changeinfo", response_model=Response_Login)
-def changeinfo(user:Change_User):
+@router.put("/changeinfo", response_model=Response_changeinfo)
+def changeinfo(user:Change_User, access_token: str = Depends(oauth2_scheme)):
   """
   유저 정보를 변경합니다.
   닉네임 : 100
   전화번호 : 200
   비밀번호 : 300
   """
-  conn,cur = mysql_create_session()
-  user_dict = user.model_dump()
-  status, data = user_dict.values()
+
+  # 사용자 검증
+  payload = access_expirecheck(access_token)
+  email = payload['email']
+  user_id = findUserID(email)
+
+  changedata = user.data
+  status = user.status
   
-  # 변경중...
+  conn,cur = mysql_create_session()
+
+  # 닉네임
+  if status == 100:
+    sql = 'UPDATE Users SET user_name = %s WHERE user_id=%s'
+  # 전화번호
+  elif status == 200:
+    sql = 'UPDATE Users SET user_number = %s WHERE user_id=%s'
+  # 비밀번호
+  elif status == 300:
+    hashed_password = bcrypt.hashpw(changedata.encode('utf-8'), bcrypt.gensalt())
+    changedata = hashed_password
+    sql = 'UPDATE Users SET user_name = %s WHERE user_id=%s'
+
+  try:     
+    cur.execute(sql,(changedata,user_id))
+    conn.commit()
+    
+    return Response_changeinfo(status=200, message="개인정보 변경 성공")
+  except:
+    raise HTTPException(status_code=404, detail="개인정보 변경 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+  
+# 자동로그인 토큰 발급 API
+@router.post("/autologinToken", response_model=Response_autologinToken)
+def autologinToken(access_token: str = Depends(oauth2_scheme)):
+  """
+  자동로그인 토큰을 발급합니다.
+  """
+
+  # 사용자 검증
+  payload = access_expirecheck(access_token)
+  email = payload['email']
+  
+  auto_token = create_token(data={"sub":email,"type":"auto_token"},expires_delta=REFRESH_TOKEN_EXPIRE_MINUTES)
+
+  return Response_autologinToken(status=201, message="auto_token 발급 성공",data=auto_token)
 
 
