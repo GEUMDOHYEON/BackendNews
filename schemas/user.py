@@ -31,3 +31,14 @@ class Response_Login(BaseModel):
   status:int
   message:str
   data:dict
+
+#개인정보 변경 반환 DTO
+class Response_changeinfo(BaseModel):
+  status:int
+  message:str
+
+#자동로그인 토큰 반환 DTO
+class Response_autologinToken(BaseModel):
+  status:int
+  message:str
+  data:str
