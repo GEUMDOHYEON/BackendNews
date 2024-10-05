@@ -15,10 +15,18 @@ class Login_User(BaseModel):
   email:str
   password:str
 
-# 유저 개인정보 수정
+# 유저 개인정보 수정 DTO
 class Change_User(BaseModel):
   status:int
   data:str
+
+# keyword 추가 DTO
+class Keyword_Add(BaseModel):
+  keyword:str
+
+# keyword 삭제 DTO
+class Keyword_Delete(BaseModel):
+  keyword:str
 
 #회원가입 반환 DTO
 class Response_Register(BaseModel):
@@ -42,3 +50,20 @@ class Response_autologinToken(BaseModel):
   status:int
   message:str
   data:str
+
+#Keyword 추가 반환 DTO
+class Response_Keyword_Add(BaseModel):
+  status:int
+  message:str
+
+#Keyword 반환 DTO
+class Response_Keyword(BaseModel):
+  status:int
+  message:str
+  data:list
+
+
+#Keyword 삭제 반환 DTO
+class Response_Keyword_Delete(BaseModel):
+  status:int
+  message:str

@@ -129,6 +129,7 @@ def login(user:Login_User, request: Request):
       #리턴 값 data안에 닉네임, 이메일, 폰번호 전달
       return Response_Login(status=201, message="로그인 성공",data={"access_token":access_token,"refresh_token":refresh_token,"nickname":row['user_nickname'],"email":user_email,"number":row['user_number']})
     else:
+      conn.rollback()
       raise HTTPException(status_code=404, detail="로그인 실패")
   finally:
     conn.close()
@@ -162,6 +163,7 @@ def reissue(refresh:Refresh_Token):
       return Response_Reissue(status=200,message="엑세스토큰 발급",access_token=new_access_token)
     
     except:
+      conn.rollback()
       raise HTTPException(status_code=401,detail="id확인불가")
     
     finally:
@@ -212,6 +214,7 @@ def changeinfo(user:Change_User, access_token: str = Depends(oauth2_scheme)):
     
     return Response_changeinfo(status=200, message="개인정보 변경 성공")
   except:
+    conn.rollback()
     raise HTTPException(status_code=404, detail="개인정보 변경 실패")
   finally:
     cur.close()
@@ -234,3 +237,114 @@ def autologinToken(access_token: str = Depends(oauth2_scheme)):
   return Response_autologinToken(status=201, message="auto_token 발급 성공",data=auto_token)
 
 
+# 개인 키워드 추가 API
+@router.post("/keywordAdd",response_model=Response_Keyword_Add)
+def keywordAdd(data:Keyword_Add, access_token: str = Depends(oauth2_scheme)):
+  """
+  개인 키워드를 추가합니다.
+  """
+
+  # 사용자 검증
+  payload = access_expirecheck(access_token)
+  email = payload['email']
+  user_id = findUserID(email)
+
+  keyword = data.keyword
+
+  conn, cur = mysql_create_session()
+  try:
+    # 키워드 추가
+    sql1 = 'INSERT INTO Keywords (keyword) VALUES(%s)'
+    cur.execute(sql1,(keyword))
+    keyword_id = cur.lastrowid
+
+    # 유저가 키워드 연결
+    sql2 = 'INSERT INTO User_keyword (keyword_id, user_id) VALUES(%s,%s)'
+    cur.execute(sql2,(keyword_id,user_id))
+    
+    conn.commit()
+    return Response_Keyword_Add(status=200, message="키워드 추가 성공")
+  except:
+    conn.rollback()
+    raise HTTPException(status_code=403, detail="키워드 추가 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+
+# 개인 키워드 조회 API
+@router.get("/keyword",response_model=Response_Keyword)
+def keywordAdd(access_token: str = Depends(oauth2_scheme)):
+  """
+  개인 키워드를 조회합니다.
+  """
+
+  # 사용자 검증
+  payload = access_expirecheck(access_token)
+  email = payload['email']
+  user_id = findUserID(email)
+
+  conn, cur = mysql_create_session()
+  try:
+    sql1 = 'SELECT keyword_id FROM User_keyword WHERE user_id=%s'
+    cur.execute(sql1,(user_id,))
+    result = cur.fetchall()
+    
+    keyword_ids = [row['keyword_id'] for row in result]
+
+    # keyword_id가 존재할 경우
+    if keyword_ids:  
+        sql2 = 'SELECT keyword FROM Keywords WHERE keyword_id IN %s'
+        cur.execute(sql2, (tuple(keyword_ids),))
+        keyword = cur.fetchall()
+        keyword_results = [row['keyword'] for row in keyword]
+    else:
+        # 없으면 공백
+        keyword_results = []
+    
+    conn.commit()
+    
+    return Response_Keyword(status=200,message="키워드 조회 성공",data=keyword_results)
+
+
+  except:
+    conn.rollback()
+    raise HTTPException(status_code=404, detail="키워드 조회 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+
+# 개인 키워드 삭제 API
+@router.delete("/keywordDelete",response_model=Response_Keyword_Delete)
+def keywordDelete(data:Keyword_Delete, access_token: str = Depends(oauth2_scheme)):
+  """
+  개인 키워드를 삭제합니다.
+  """
+
+  # 사용자 검증
+  payload = access_expirecheck(access_token)
+  email = payload['email']
+  user_id = findUserID(email)
+
+  keyword = data.keyword
+
+  conn, cur = mysql_create_session()
+  try:
+    # 키워드 조회
+    sql1 = 'SELECT keyword_id FROM Keywords WHERE keyword=%s'
+    cur.execute(sql1,(keyword))
+    keyword_id = cur.fetchone()['keyword_id']
+
+    # 유저-키워드 삭제
+    sql2 = 'DELETE FROM User_keyword WHERE keyword_id=%s and user_id=%s'
+    cur.execute(sql2,(keyword_id,user_id))
+    
+    conn.commit()
+    return Response_Keyword_Add(status=200, message="키워드 삭제 성공")
+  except:
+    conn.rollback()
+    raise HTTPException(status_code=403, detail="키워드 삭제 실패")
+  finally:
+    cur.close()
+    conn.close()
