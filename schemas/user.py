@@ -28,6 +28,18 @@ class Keyword_Add(BaseModel):
 class Keyword_Delete(BaseModel):
   keyword:str
 
+# ID 찾기 DTO
+class Find_ID(BaseModel):
+  user_name:str
+  user_number:str
+
+# 비밀번호 재설정
+class Reset_Password(BaseModel):
+  user_email:str
+  user_name:str
+  user_number:str
+  new_password:str
+
 #회원가입 반환 DTO
 class Response_Register(BaseModel):
   status:int
@@ -65,5 +77,16 @@ class Response_Keyword(BaseModel):
 
 #Keyword 삭제 반환 DTO
 class Response_Keyword_Delete(BaseModel):
+  status:int
+  message:str
+
+# 아이디 찾기 반환 DTO
+class Response_findID(BaseModel):
+  status:int
+  message:str
+  email:str
+
+# 비밀번호 재설정 반환 DTO
+class Response_resetPassword(BaseModel):
   status:int
   message:str
