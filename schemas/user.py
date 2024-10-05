@@ -41,4 +41,4 @@ class Response_changeinfo(BaseModel):
 class Response_autologinToken(BaseModel):
   status:int
   message:str
-  data:dict
+  data:str
