@@ -15,21 +15,21 @@ from contextlib import asynccontextmanager
 # 백그라운드 스케줄링 작업
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-#   # 서버가 구동되면 실행되는 코드
+  # 서버가 구동되면 실행되는 코드
 
-#   scheduler = BackgroundScheduler()
-#   # 1시간마다 새로운 뉴스를 가져오기 위해 뉴스 스크래핑 작업 진행
-#   scheduler.add_job(get_news_from_api, 'interval', hours=1)
-#   scheduler.start()
-#   # 서버 실행 후 곧바로 뉴스 스크래핑 작업 진행
-#   # 잠시 켜둠 '다시 주석처리'
-#   # get_news_from_api()
+  scheduler = BackgroundScheduler()
+  # 1시간마다 새로운 뉴스를 가져오기 위해 뉴스 스크래핑 작업 진행
+  scheduler.add_job(get_news_from_api, 'interval', hours=1)
+  scheduler.start()
+  # 서버 실행 후 곧바로 뉴스 스크래핑 작업 진행
+  # 잠시 켜둠 '다시 주석처리'
+  # get_news_from_api()
 
   yield
 
-#   #서버가 종료되면 실행되는 코드
+  #서버가 종료되면 실행되는 코드
 
-#   scheduler.shutdown()
+  scheduler.shutdown()
 
 
 # swagger 페이지 소개
