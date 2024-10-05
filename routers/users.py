@@ -126,8 +126,8 @@ def login(user:Login_User, request: Request):
       refresh_token = create_token(data={"sub":row["user_email"],"type":"refresh_token"},expires_delta=REFRESH_TOKEN_EXPIRE_MINUTES)
 
 
-      #리턴 값 data안에 일단 닉네임 넣음
-      return Response_Login(status=201, message="로그인 성공",data={"access_token":access_token,"refresh_token":refresh_token,"nickname":row['user_nickname']})
+      #리턴 값 data안에 닉네임, 이메일, 폰번호 전달
+      return Response_Login(status=201, message="로그인 성공",data={"access_token":access_token,"refresh_token":refresh_token,"nickname":row['user_nickname'],"email":user_email,"number":row['user_number']})
     else:
       raise HTTPException(status_code=404, detail="로그인 실패")
   finally:

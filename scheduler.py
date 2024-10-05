@@ -135,6 +135,7 @@ def crawl_article(url):
 # 동적 페이지 크롤링
 def crawl_dynamic_article(url):
     # excutable_path는 chromdriver가 위치한 경로를 적어주면 된다.
+    # 없어도 잘돌아감... 왜지? .env파일에서 EXCUTABLE_PATH 삭제해도됨
     # driver = webdriver.Chrome(excutable_path =EXCUTABLE_PATH,chrome_options=chrome_options)
     driver = webdriver.Chrome() 
 
