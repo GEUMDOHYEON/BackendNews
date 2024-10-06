@@ -6,7 +6,7 @@ class postWrite_Model (BaseModel):
     community_content : str
     community_createat : str
     access_token : str
-    new_write : bool
+    isNewWrite : bool
     
 class PostDelete_Model (BaseModel):
     community_id : str
@@ -15,5 +15,5 @@ class PostDelete_Model (BaseModel):
     community_createat : str
     access_token : str
     
-class PostUpload_Model (BaseModel) :
-    community_id : str
+class PostLoad_Model (BaseModel) :
+    is

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from database import mysql_create_session
-from schemas.board import postWrite_Model, PostDelete_Model, PostUpload_Model
+from schemas.board import postWrite_Model, PostDelete_Model
+from tokens import expirecheck
 from datetime import datetime
 from dotenv import load_dotenv
 import jwt
@@ -24,6 +25,9 @@ async def write(postWrite_data : postWrite_Model):
   # mysql 과 상호작용하기 위해 연결해주는 cur 객체
   conn, cur = mysql_create_session()
   
+  # 토큰 유효한지 확인 
+  # expirecheck(postWrite_data.access_token)
+  
   # 유저 정보 - 토큰 디코딩 후 - 닉네임 가져오기
   payload = jwt.decode(postWrite_data.access_token, SECRET_KEY, argorithms = [ALGORITHM])
   
@@ -42,8 +46,10 @@ async def write(postWrite_data : postWrite_Model):
   if user_email is None:
     raise HTTPException(status_code = 400, detail = "토큰 인증 실패")
   
-  if(postWrite_data.new_write):
+  # 새로운 글인지 확인
+  if(postWrite_data.isNewWrite):
     try:
+      # 글 생성 
       # 입력 받은 값을 가져오기
       sql = "INSERT INTO `NEWS`.`Community` (`community_title`, `user_nickname`, `community_content`, `community_createat`) VALUES (%s, %s, %s, %s);"
       cur.execute(sql,(community_title,user_nickname,community_content,community_createat))
@@ -51,10 +57,11 @@ async def write(postWrite_data : postWrite_Model):
     except Exception as e:
       conn.rollback()
       # 에러 발생시 예외 메세지 (detail)를 전달 
-      raise HTTPException(status_code=400, detail=str(e))
+      raise HTTPException(status_code=401, detail=str(e))
     finally:
       conn.close()
   else:
+    # 글 수정 
     try:
       community_id = postWrite_data.community_id
       sql = 'UPDATE Community SET community_content = %s WHERE community_id = %s;'
@@ -62,24 +69,27 @@ async def write(postWrite_data : postWrite_Model):
       conn.commit()
     except Exception as e:
       conn.rollback()
-      raise HTTPException(status_code=400, detail=str(e))
+      raise HTTPException(status_code=401, detail=str(e))
     finally:
       conn.close()
   
-  return {"status_code" : 400, "message" : "업로드 성공"}
+  return {"status_code" : 201, "message" : "업로드 성공"}
 
-# 게시판 글 로딩
-@router.posr("/postUpload")
-async def Upload(postUpload_data : PostUpload_Model):
+# 게시판 목록 불러오기
+@router.post("/postUpload")
+async def upload():
   conn, cur = mysql_create_session()
 
+  # 커뮤니티 테이블의 총 레코드 수 계산 
   sql = 'SELECT COUNT(*) FROM Community;'
     
   cur.execute(sql)
   rowcount = cur.fetchone()
+  # 총 게시물 개수
   rowcount = rowcount["COUNT(*)"]
   data = []
 
+  # 게시물 데이터를 10개 단위로 나눠서 배열에 저장
   for i in range(0,rowcount,10):
     sql = 'SELECT community_id,community_title,user_nickname,community_createat FROM Community ORDER BY community_id DESC limit %s;'
     cur.execute(sql,(i))
@@ -88,12 +98,13 @@ async def Upload(postUpload_data : PostUpload_Model):
 #   print(data)
 
   conn.close()
-  
-  
-  return  {"불러오기 성공"}
+  return {"status_code" : 201, "message" : "불러오기 성공"}
 
-# 게시판 목록 불러오기
-
+# 게시판 글 로딩
+@router.post("/postLoad")
+async def load():
+  
+  return {"status_code" : 201, "message" : "불러오기 성공"}
 
 
 # 게시판 글 삭제
@@ -123,7 +134,7 @@ async def remove(postDelete_data : PostDelete_Model):
       conn.rollback()
     finally:
       conn.close()
-    return {"status" : 201, "message" : "삭제완료"}
+    return {"status" : 204, "message" : "삭제완료"}
   
   return {"status" : 401, "message" : "삭제불가"}
 
