@@ -13,6 +13,7 @@ async def lifespan(app: FastAPI):
   scheduler.add_job(get_news_from_api, 'interval', hours=1)
   scheduler.start()
   # 서버 실행 후 곧바로 뉴스 스크래핑 작업 진행
+  # 테스트할 때 확인하기
   get_news_from_api()
 
   yield
