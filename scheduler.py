@@ -60,10 +60,10 @@ def get_news_from_api():
                 response_body = response.read()
                 response_dict = json.loads(response_body.decode('utf-8'))
                 items = response_dict['items']
-                #print(keyword)
+                print(keyword)
                 # 네이버 뉴스API를 통해 가져온 결과값(링크, 제목, 생성일)
                 for item in items:
-                    print(item['title'])
+                    #print(item['title'])
                     if 'naver.com' in item['link']:
                         try:
                             # 날짜 문자열을 파싱하고 MySQL 형식으로 변환

@@ -56,12 +56,37 @@ def register(user:Register_User):
   user_dict = user.model_dump()
   user_email,user_password,user_name,user_number,user_nickname,user_age = user_dict.values()
 
+
+  try:
+    # 이메일 중복 여부 확인
+    sql1 = 'SELECT EXISTS(SELECT 1 FROM Users WHERE user_email="{}")'.format(user_email)
+    cur.execute(sql1)
+    dupli = cur.fetchone()
+    exists = list(dupli.values())[0]
+    if exists != 0:
+      return Response_Register(status=418, message="아이디 중복")
+    
+    # 닉네임 중복 여부 확인
+    sql2 = 'SELECT EXISTS(SELECT 1 FROM Users WHERE user_nickname="{}")'.format(user_nickname)
+    cur.execute(sql2)
+    dupli = cur.fetchone()
+    exists = list(dupli.values())[0]
+    if exists != 0:
+      return Response_Register(status=419, message="닉네임 중복")
+  except:
+    conn.rollback()
+    conn.close()
+    cur.close()
+    raise HTTPException(status_code=404,detail="회원가입 실패")
+
+    
+
   #패스워드 해싱
   hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
 
   try:
-    sql = 'INSERT INTO Users(user_email, user_name, user_password,user_number,user_nickname,user_age) VALUES (%s, %s, %s, %s, %s, %s)'
-    cur.execute(sql,(user_email,user_name,hashed_password,user_number,user_nickname,user_age))
+    sql3 = 'INSERT INTO Users(user_email, user_name, user_password,user_number,user_nickname,user_age) VALUES (%s, %s, %s, %s, %s, %s)'
+    cur.execute(sql3,(user_email,user_name,hashed_password,user_number,user_nickname,user_age))
     conn.commit()
     return Response_Register(status=201, message="회원가입 성공")
   except Exception as e:
@@ -253,17 +278,25 @@ def keywordAdd(data:Keyword_Add, access_token: str = Depends(oauth2_scheme)):
 
   conn, cur = mysql_create_session()
   try:
-    # 키워드 추가
-    sql1 = 'INSERT INTO Keywords (keyword) VALUES(%s)'
+    # 키워드 있는지 확인
+    sql1 = 'SELECT keyword_id FROM Keywords WHERE keyword=%s'
     cur.execute(sql1,(keyword))
-    keyword_id = cur.lastrowid
+    keyword_id = cur.fetchone()
+
+    if keyword_id is None:
+      # 키워드 추가
+      sql2 = 'INSERT INTO Keywords (keyword) VALUES(%s)'
+      cur.execute(sql2,(keyword))
+      keyword_id = cur.lastrowid
+    else:
+      keyword_id = keyword_id['keyword_id']
 
     # 유저가 키워드 연결
-    sql2 = 'INSERT INTO User_keyword (keyword_id, user_id) VALUES(%s,%s)'
-    cur.execute(sql2,(keyword_id,user_id))
+    sql3 = 'INSERT INTO User_keyword (keyword_id, user_id) VALUES(%s,%s)'
+    cur.execute(sql3,(keyword_id,user_id))
     
     conn.commit()
-    return Response_Keyword_Add(status=200, message="키워드 추가 성공")
+    return Response_Keyword_Add(status=201, message="키워드 추가 성공")
   except:
     conn.rollback()
     raise HTTPException(status_code=403, detail="키워드 추가 실패")
@@ -341,10 +374,81 @@ def keywordDelete(data:Keyword_Delete, access_token: str = Depends(oauth2_scheme
     cur.execute(sql2,(keyword_id,user_id))
     
     conn.commit()
-    return Response_Keyword_Add(status=200, message="키워드 삭제 성공")
+    return Response_Keyword_Delete(status=200, message="키워드 삭제 성공")
   except:
     conn.rollback()
     raise HTTPException(status_code=403, detail="키워드 삭제 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+
+# 아이디 찾기 API
+@router.post("/findID",response_model=Response_findID)
+def keywordDelete(data:Find_ID):
+  """
+  아이디를 찾습니다.
+  """
+
+  name = data.user_name
+  number = data.user_number
+
+  conn, cur = mysql_create_session()
+  try:
+    sql = 'SELECT user_email FROM Users WHERE user_name=%s and user_number=%s'
+    cur.execute(sql,(name,number))
+    user_email = cur.fetchone()['user_email']
+
+    conn.commit()
+    return Response_findID(status=201, message="아이디 찾기 완료", email=user_email)
+  
+  except:
+    conn.rollback()
+    raise HTTPException(status_code=403, detail="아이디 찾기 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+
+# 비밀번호 재설정 API
+@router.post("/resetPassword",response_model=Response_resetPassword)
+def keywordDelete(data:Reset_Password):
+  """
+  비밀번호를 재설정합니다.
+  """
+
+  email = data.user_email
+  name = data.user_name
+  number = data.user_number
+  new_password = data.new_password
+
+  conn, cur = mysql_create_session()
+  try:
+    # 대상이 있는지 확인
+    sql1 = 'SELECT user_id FROM Users WHERE user_email=%s and user_name = %s and user_number=%s'
+    cur.execute(sql1,(email,name,number))
+    result = cur.fetchone()
+
+    conn.commit()
+
+    # 일치하지 않을 시
+    if result is None:
+      return Response_resetPassword(status=418,message="대상 정보가 없습니다")
+    
+    user_id = list(result.values())[0]
+
+    #패스워드 해싱
+    new_hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+
+    sql2 = "UPDATE Users SET user_password = %s WHERE user_id = %s"
+    cur.execute(sql2,(new_hashed_password,user_id))
+    conn.commit()
+
+    return Response_findID(status=201, message="비밀번호 변경 완료")
+  
+  except:
+    conn.rollback()
+    raise HTTPException(status_code=403, detail="비밀번호 변경 실패")
   finally:
     cur.close()
     conn.close()
