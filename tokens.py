@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from fastapi import HTTPException
 import jwt
 import os
 from schemas.token import *
@@ -30,57 +31,13 @@ def create_token(data:dict, expires_delta: int | None = None):
 
     return encoded_jwt
 
-# 토큰 만료 확인 및 재갱신 함수
-def expirecheck(data:Tokens):
+# 엑세스 토큰 만료 확인
+def access_expirecheck(data:Access_Token):
     try:
         #access_token 만료 확인
-        jwt.decode(data.access_token, SECRET_KEY, algorithms=[ALGORITHM])
-        return Response_Tokens(status=201, message="이상없음")
-    
+        payload = jwt.decode(data, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get('sub')
+        nickname = payload.get('nick')
+        return {"email":email,"nickname":nickname}
     except:
-        try:
-            #refresh_token 만료 확인
-            jwt.decode(data.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-
-            new_access_token = access_token_reissue(data.refresh_token)
-
-            # 재발급중 오류생기면
-            if new_access_token.status==401:
-                return Response_Tokens(status=400, message="발급오류")
-            
-            access_token = new_access_token.data
-
-            # data를 json말고 str로 보내도 되는지
-            return Response_Tokens(status=100, message="access_token재발급", data=access_token)
-        
-        except:
-            return Response_Tokens(status=401, message="모든 토큰 만료")
-
-
-#access_token 재발급 함수
-def access_token_reissue(refresh_token):
-    # 토큰 디코딩
-    payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-    user_id = payload.get('sub')
-
-    conn, cur = mysql_create_session()
-
-    try:
-        sql = "SELECT * FROM users WHERE email = %s"
-        cur.execute(sql,(user_id))
-        row = cur.fetchone()
-
-        if not row:
-            return Response_Tokens(status=401, message="id확인안됨")
-        
-        # 새로운 access토큰 발급
-        new_access_token = create_token(data={"sub":row['email'],"nickname":row['nickname'],"type":"access_token"},expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES)
-
-        return Response_Access_Token(status=200, message="access토큰 재발급", data=new_access_token)
-    except:
-        return Response_Access_Token(status=401, message="aceess토큰 오류")
-
-    finally:
-        conn.close()
-        cur.close()
-        
+        raise HTTPException(status_code=401,detail="access_token만료")
