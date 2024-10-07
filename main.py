@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import users, news,board
+from routers import users, news, board
 # 백그라운드 스케줄러
 from apscheduler.schedulers.background import BackgroundScheduler
 from scheduler import get_news_from_api
@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
   scheduler.start()
   # 서버 실행 후 곧바로 뉴스 스크래핑 작업 진행
   # 테스트할 때 확인하기
-  get_news_from_api()
+  # get_news_from_api()
 
   yield
 
@@ -34,3 +34,4 @@ def helloWorld():
 @app.get("/test")
 def test():
   return {"test.."}
+
