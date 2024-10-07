@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from database import mysql_create_session
-from schemas.board import postWrite_Model, PostDelete_Model
+from schemas.board import postWrite_Model, PostDelete_Model, CommentWrite_Model, CommentUpload_Modal
 from tokens import expirecheck
 from datetime import datetime
 from dotenv import load_dotenv
@@ -18,6 +18,10 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = os.environ["ALGORITHM"]
+
+# 토큰 유효한지 확인
+# 유저 아이디로 제어
+
 
 # 게시판 글 작성 / 수정
 @router.post("/postWrite")
@@ -138,3 +142,45 @@ async def remove(postDelete_data : PostDelete_Model):
   
   return {"status" : 401, "message" : "삭제불가"}
 
+@router.post("/commentWrite")
+async def remove(commentWrite_data : CommentWrite_Model):
+  comment_content = commentWrite_data.comment_content
+  comment_id = commentWrite_data.comment_id
+  
+  payload = jwt.decode(commentWrite_data.access_token, SECRET_KEY, argorithms = [ALGORITHM])
+  
+  user_nickname = payload.get("nickname")
+  user_email = payload.get("email")
+  
+  conn, cur = mysql_create_session()
+  try:
+    sql = "INSERT INTO comment (postnum, nick, data) VALUES ({}, '{}', '{}');".format(comment_id,user_nickname,comment_content)
+    #print(sql)
+    cur.execute(sql)
+    #print("완료")
+    conn.commit()
+  except Exception as e:
+    conn.rollback()
+    raise HTTPException(status_code=400, detail=str(e))
+  finally:
+    conn.close()
+
+    return {"status":201,"message":"등록완료"}
+  
+@router.get("/CommentUpload/{num}")
+async def commentUpload (commentUpload : CommentUpload_Modal):
+  comment_id = commentUpload.comment_id
+  
+  conn, cur = mysql_create_session()
+    
+  payload = jwt.decode(commentUpload.access_token, SECRET_KEY, argorithms = [ALGORITHM])
+  
+  user_nickname = payload.get("nickname")
+  user_email = payload.get("email")
+
+  sql = "SELECT user_nickname,comment_content FROM Community_Comments WHERE comment_id={} ORDER BY comment_id DESC;".format(comment_id)
+  cur.execute(sql)
+  data = cur.fetchall()
+  conn.close()
+
+  return {"status":201,"message":"댓글 전송 성공"}
