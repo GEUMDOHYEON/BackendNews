@@ -2,13 +2,6 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import List
 
-class News_card(BaseModel):
-  article_id:int
-  article_title:str
-  article_url:str
-  article_content:str
-  article_image:str
-
 class News_title(BaseModel):
   article_id:int
   article_title:str
@@ -17,7 +10,7 @@ class News_title(BaseModel):
 class Response_NewsList(BaseModel):
   status:int
   message:str
-  data: List[News_card]
+  data: dict
 
 class Response_News(BaseModel):
   status:int
@@ -51,3 +44,8 @@ class Chagnge_Comment(BaseModel):
 
 class Delete_Comment(BaseModel):
   comment_id: int
+
+class Response_Summary(BaseModel):
+  status:int
+  message:str
+  data:dict

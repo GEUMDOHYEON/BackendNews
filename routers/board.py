@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from database import mysql_create_session
-from schemas.board import postWrite_Model, PostDelete_Model, CommentWrite_Model, CommentUpload_Modal
-from tokens import expirecheck
+from schemas.board import *
+from fastapi.security import OAuth2PasswordBearer
+from tokens import access_expirecheck
 from datetime import datetime
 from dotenv import load_dotenv
-import jwt
+from routers.news import findUserID
 import os
 
 router = APIRouter(
@@ -19,68 +20,109 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = os.environ["ALGORITHM"]
 
-# 토큰 유효한지 확인
-# 유저 아이디로 제어
+# 헤더에 토큰 값 가져오기 위한 객체
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-# 게시판 글 작성 / 수정
-@router.post("/postWrite")
-async def write(postWrite_data : postWrite_Model):
+# 게시판 글 작성
+@router.post("/postWrite", response_model = Response_PostWrite_Model)
+async def write(postWrite_data : PostWrite_Model, access_token: str = Depends(oauth2_scheme)):
   # mysql 과 상호작용하기 위해 연결해주는 cur 객체
   conn, cur = mysql_create_session()
   
   # 토큰 유효한지 확인 
-  # expirecheck(postWrite_data.access_token)
+  payload = access_expirecheck(access_token)
   
   # 유저 정보 - 토큰 디코딩 후 - 닉네임 가져오기
-  payload = jwt.decode(postWrite_data.access_token, SECRET_KEY, argorithms = [ALGORITHM])
+  user_nickname = payload["nickname"]
+  user_email = payload['email']
   
-  user_nickname = payload.get("nickname")
-  user_email = payload.get("email")
+  user_id = findUserID(user_email)
+  
+  print(user_email)
+  print(user_nickname)
+  print(user_id)
   
   # 게시판 정보 - 제목, 내용, 작성 시간
   community_title = postWrite_data.community_title
   community_content = postWrite_data.community_content
   
+  print(community_content)
+  print(community_title)
+  
   # 작성 시간을 년, 달, 일 순으로 가져오기
   now = datetime.now()
   community_createat = now.strftime("%Y-%m-%d")
   
-  # 사용자 이메일이 유효하지 않을 시 토큰 인증 실패
-  if user_email is None:
-    raise HTTPException(status_code = 400, detail = "토큰 인증 실패")
+  print(community_createat)
   
-  # 새로운 글인지 확인
-  if(postWrite_data.isNewWrite):
-    try:
-      # 글 생성 
-      # 입력 받은 값을 가져오기
-      sql = "INSERT INTO `NEWS`.`Community` (`community_title`, `user_nickname`, `community_content`, `community_createat`) VALUES (%s, %s, %s, %s);"
-      cur.execute(sql,(community_title,user_nickname,community_content,community_createat))
-      conn.commit()
-    except Exception as e:
-      conn.rollback()
-      # 에러 발생시 예외 메세지 (detail)를 전달 
-      raise HTTPException(status_code=401, detail=str(e))
-    finally:
-      conn.close()
-  else:
-    # 글 수정 
-    try:
-      community_id = postWrite_data.community_id
-      sql = 'UPDATE Community SET community_content = %s WHERE community_id = %s;'
-      cur.execute(sql,(community_content,community_id))
-      conn.commit()
-    except Exception as e:
-      conn.rollback()
-      raise HTTPException(status_code=401, detail=str(e))
-    finally:
-      conn.close()
+  try:
+    # 글 생성 
+    # 입력 받은 값을 가져오기
+    sql = "INSERT INTO Community (user_id, community_title, community_content, community_createat) VALUES (%s, %s, %s, %s)"
+    cur.execute(sql,(user_id, community_title,community_content,community_createat))
+    conn.commit()
+    return Response_PostWrite_Model(status=201, message="업로드 성공")
+  except Exception as e:
+    conn.rollback()
+    # 에러 발생시 예외 메세지 (detail)를 전달 
+    raise HTTPException(status_code=401, detail=str(e))
+  finally:
+    conn.close()
   
-  return {"status_code" : 201, "message" : "업로드 성공"}
+
+# 게시판 글 수정 
+@router.put("/postEdit", response_model = Response_PostEdit_Model)
+async def edit(postEdit_data : PostEdit_Model, access_token: str = Depends(oauth2_scheme)):
+  # mysql 과 상호작용하기 위해 연결해주는 cur 객체
+  conn, cur = mysql_create_session()
+  
+  # 토큰 유효한지 확인 
+  payload = access_expirecheck(access_token)
+  
+  # 유저 정보 - 토큰 디코딩 후 - 닉네임 가져오기
+  user_nickname = payload["nickname"]
+  user_email = payload['email']
+  
+  user_id = findUserID(user_email)
+  
+  print(user_email)
+  print(user_nickname)
+  print(user_id)
+  
+  # 게시판 정보 - 제목, 내용, 작성 시간
+  new_community_title = postEdit_data.community_title
+  new_community_content = postEdit_data.community_content
+  new_community_id = postEdit_data.community_id
+  
+  print(new_community_content)
+  print(new_community_title)
+  
+  # 작성 시간을 년, 달, 일 순으로 가져오기
+  now = datetime.now()
+  community_createat = now.strftime("%Y-%m-%d")
+  
+  print(community_createat)
+  
+  
+  try:
+    # 글 생성 
+    # 입력 받은 값을 가져오기
+    sql = " UPDATE Community SET community_title = %s, community_content = %s, community_createat = %s WHERE community_id = %s AND user_id = %s "
+    cur.execute(sql,( new_community_title,new_community_content,community_createat, new_community_id, user_id))
+    conn.commit()
+    return Response_PostEdit_Model(status=201, message="수정 성공")
+  except Exception as e:
+    conn.rollback()
+    # 에러 발생시 예외 메세지 (detail)를 전달 
+    raise HTTPException(status_code=401, detail=str(e))
+  finally:
+    conn.close()
+    cur.close()
+
 
 # 게시판 목록 불러오기
-@router.post("/postUpload")
+@router.post("/postUpload", response_model=Response_PostUpload_Model)
 async def upload():
   conn, cur = mysql_create_session()
 
@@ -91,96 +133,92 @@ async def upload():
   rowcount = cur.fetchone()
   # 총 게시물 개수
   rowcount = rowcount["COUNT(*)"]
-  data = []
+  print(rowcount)
+  list_data = []
 
   # 게시물 데이터를 10개 단위로 나눠서 배열에 저장
-  for i in range(0,rowcount,10):
-    sql = 'SELECT community_id,community_title,user_nickname,community_createat FROM Community ORDER BY community_id DESC limit %s;'
+  for i in range(1,rowcount + 1,10):
+    sql = 'SELECT community_id,community_title,community_createat FROM Community ORDER BY community_id DESC limit %s;'
     cur.execute(sql,(i))
     tend = cur.fetchall()
-    data.append(tend)
-#   print(data)
+    list_data.append(tend)
 
   conn.close()
-  return {"status_code" : 201, "message" : "불러오기 성공"}
+  return Response_PostUpload_Model(status=201, message="리스트 받아오기 성공", data=list_data)
 
-# 게시판 글 로딩
-@router.post("/postLoad")
-async def load():
-  
-  return {"status_code" : 201, "message" : "불러오기 성공"}
-
-
-# 게시판 글 삭제
-@router.delete("/postRemove")
-async def remove(postDelete_data : PostDelete_Model):
-  
-  # mysql 과 상호작용하기 위해 연결해주는 cur 객체
+# 게시판 세부정보 불러오기 API
+@router.post("/postRead", response_model=Response_PostRead_Model)
+async def read(postRead_data : PostRead_Model):
   conn, cur = mysql_create_session()
   
-  # 유저 정보 - 토큰 디코딩 후 - 아이디, 닉네임 가져오기
-  user_nickname = jwt.decode(postDelete_data.access_token, SECRET_KEY, argorithms = [ALGORITHM])
+  community_id = postRead_data.community_id
+  print(community_id)
+
   
-  community_id = postDelete_data.community_id
+  # 조회수
+  sql1 = 'SELECT community_search FROM Community WHERE community_id = %s'
+  cur.execute(sql1, (community_id,))
 
-  conn, cur = mysql_create_session()
-  sql = 'SELECT user_nickname FROM Community WHERE community_id=%s;'
-
+  # 검색 후 조회수 1 증가
+  community_search = cur.fetchone()['community_search'] + 1
+  sql2 = 'UPDATE Community SET community_search = %s WHERE community_id = %s'
+  cur.execute(sql2, (community_search, community_id,))
+  conn.commit()
+  
+  sql = 'SELECT community_id,community_title,community_createat,user_id,community_search FROM Community WHERE community_id = %s;'
   cur.execute(sql,(community_id))
-  user_nickname = cur.fetchone()
+  data = cur.fetchall()
   
-  if (user_nickname["user_nickname"] == postDelete_data["user_nickname"]) :
-    try:
-      sql = 'DELETE FROM Community WHERE community_id=%s;'
-      cur.execute(sql,(community_id))
-      conn.commit()
-    except Exception as e:
-      conn.rollback()
-    finally:
-      conn.close()
-    return {"status" : 204, "message" : "삭제완료"}
-  
-  return {"status" : 401, "message" : "삭제불가"}
+  conn.close()
+  return Response_PostRead_Model(status=201, message="게시물 가져오기 성공", data=data)
 
-@router.post("/commentWrite")
-async def remove(commentWrite_data : CommentWrite_Model):
-  comment_content = commentWrite_data.comment_content
-  comment_id = commentWrite_data.comment_id
-  
-  payload = jwt.decode(commentWrite_data.access_token, SECRET_KEY, argorithms = [ALGORITHM])
-  
-  user_nickname = payload.get("nickname")
-  user_email = payload.get("email")
-  
+from fastapi import APIRouter, HTTPException, Depends
+
+router = APIRouter()
+
+# 게시글 삭제 API
+@router.delete("/postRemove", response_model=Response_PostRemove_Model)
+async def remove(postRemove_data: PostRemove_Model, access_token: str = Depends(oauth2_scheme)):
+  # MySQL과 상호작용하기 위해 연결하는 cur 객체
   conn, cur = mysql_create_session()
+
+  # 토큰 유효성 확인
+  payload = access_expirecheck(access_token)
+
+  # 유저 정보 - 이메일로 user_id 조회
+  user_email = payload['email']
+  access_user_id = findUserID(user_email)
+  print(access_user_id)
+
+  # 삭제할 게시글 ID
+  community_id = postRemove_data.community_id
+
   try:
-    sql = "INSERT INTO comment (postnum, nick, data) VALUES ({}, '{}', '{}');".format(comment_id,user_nickname,comment_content)
-    #print(sql)
-    cur.execute(sql)
-    #print("완료")
+    # 게시글 작성자(user_id) 확인
+    sql = 'SELECT user_id FROM Community WHERE community_id = %s'
+    cur.execute(sql, (community_id,))
+    result = cur.fetchone()
+
+    if not result:
+      raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        
+    # DB에서 가져온 user_id는 튜플이므로 [0]으로 값 추출
+    original_user_id = result[0]
+    print(original_user_id)
+
+    # 현재 로그인한 유저가 게시글 작성자인지 확인
+    if access_user_id != original_user_id:
+      raise HTTPException(status_code=403, detail="게시글을 삭제할 권한이 없습니다.")
+
+    # 게시글 삭제
+    sql = 'DELETE FROM Community WHERE community_id = %s;'
+    cur.execute(sql, (community_id,))
     conn.commit()
+
   except Exception as e:
-    conn.rollback()
-    raise HTTPException(status_code=400, detail=str(e))
+      conn.rollback()
+      raise HTTPException(status_code=400, detail=f"DB 에러 발생: {str(e)}")
   finally:
     conn.close()
 
-    return {"status":201,"message":"등록완료"}
-  
-@router.get("/CommentUpload/{num}")
-async def commentUpload (commentUpload : CommentUpload_Modal):
-  comment_id = commentUpload.comment_id
-  
-  conn, cur = mysql_create_session()
-    
-  payload = jwt.decode(commentUpload.access_token, SECRET_KEY, argorithms = [ALGORITHM])
-  
-  user_nickname = payload.get("nickname")
-  user_email = payload.get("email")
-
-  sql = "SELECT user_nickname,comment_content FROM Community_Comments WHERE comment_id={} ORDER BY comment_id DESC;".format(comment_id)
-  cur.execute(sql)
-  data = cur.fetchall()
-  conn.close()
-
-  return {"status":201,"message":"댓글 전송 성공"}
+  return Response_PostRemove_Model(status=201, message="게시물 삭제 완료")

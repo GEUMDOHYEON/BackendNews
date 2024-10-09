@@ -1,19 +1,19 @@
 from pydantic import BaseModel
 
-class postWrite_Model (BaseModel):
-    community_id : str
+class PostWrite_Model (BaseModel):
     community_title : str
     community_content : str
-    community_createat : str
-    access_token : str
-    isNewWrite : bool
-    
-class PostDelete_Model (BaseModel):
-    community_id : str
+
+class PostEdit_Model (BaseModel):
     community_title : str
     community_content : str
-    community_createat : str
-    access_token : str
+    community_id : str
+
+class PostRead_Model (BaseModel):
+    community_id : str
+
+class PostRemove_Model (BaseModel):
+    community_id : str
 
 class CommentWrite_Model (BaseModel):
     comment_id : str
@@ -21,6 +21,28 @@ class CommentWrite_Model (BaseModel):
     comment_create : str
     access_token : str
     
-class CommentUpload_Modal (BaseModel):
+class CommentUpload_Model (BaseModel):
     comment_id : str
     access_token : str
+
+class Response_PostWrite_Model (BaseModel):
+    status : int
+    message : str
+    
+class Response_PostEdit_Model (BaseModel):
+    status : int
+    message : str
+    
+class Response_PostUpload_Model (BaseModel):
+    status : int
+    message : str
+    data : list
+    
+class Response_PostRead_Model (BaseModel):
+    status : int
+    message : str
+    data : list
+    
+class Response_PostRemove_Model (BaseModel):
+    status : int
+    message : str
