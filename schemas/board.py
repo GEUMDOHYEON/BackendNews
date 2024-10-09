@@ -3,6 +3,10 @@ from pydantic import BaseModel
 class PostWrite_Model (BaseModel):
     community_title : str
     community_content : str
+    
+class PostUpload_Model (BaseModel):
+    page: int
+    itemCount: int
 
 class PostEdit_Model (BaseModel):
     community_title : str
