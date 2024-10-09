@@ -185,7 +185,7 @@ def reissue(refresh_token: str = Depends(oauth2_scheme)):
       # 새로운 access토큰 발급
       new_access_token = create_token(data={"sub":row['user_email'],"nick":row['user_nickname'],"type":"access_token"},expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-      return Response_Reissue(status=200,message="엑세스토큰 발급",access_token=new_access_token)
+      return Response_Reissue(status=201,message="엑세스토큰 발급",access_token=new_access_token)
     
     except:
       conn.rollback()
