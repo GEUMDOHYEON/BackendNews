@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
   scheduler.start()
   # 서버 실행 후 곧바로 뉴스 스크래핑 작업 진행
   # 테스트할 때 확인하기
-  # get_news_from_api()
+  get_news_from_api()
 
   yield
 
@@ -109,7 +109,4 @@ async def log_request(request: Request, call_next):
 def helloWorld():
   return {"HELLO WORLD"}
 
-@app.get("/test")
-def test():
-  return {"test.."}
 
