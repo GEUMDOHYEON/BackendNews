@@ -20,14 +20,6 @@ class Change_User(BaseModel):
   status:int
   data:str
 
-# keyword 추가 DTO
-class Keyword_Add(BaseModel):
-  keyword:str
-
-# keyword 삭제 DTO
-class Keyword_Delete(BaseModel):
-  keyword:str
-
 # ID 찾기 DTO
 class Find_ID(BaseModel):
   user_name:str
@@ -62,23 +54,6 @@ class Response_autologinToken(BaseModel):
   status:int
   message:str
   data:str
-
-#Keyword 추가 반환 DTO
-class Response_Keyword_Add(BaseModel):
-  status:int
-  message:str
-
-#Keyword 반환 DTO
-class Response_Keyword(BaseModel):
-  status:int
-  message:str
-  data:list
-
-
-#Keyword 삭제 반환 DTO
-class Response_Keyword_Delete(BaseModel):
-  status:int
-  message:str
 
 # 아이디 찾기 반환 DTO
 class Response_findID(BaseModel):
