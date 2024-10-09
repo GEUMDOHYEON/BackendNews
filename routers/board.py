@@ -137,8 +137,7 @@ def upload(postUpload_data : PostUpload_Model):
     sql = 'SELECT community_id,community_title,community_createat FROM Community ORDER BY community_id DESC limit %s, %s;'
     cur.execute(sql,(start, postUpload_data.itemCount))
     result = cur.fetchall()
-    data = result
-    return Response_PostUpload_Model(status=200, message="게시판 목록 불러오기 성공",data=data)
+    return Response_PostUpload_Model(status=200, message="게시판 목록 불러오기 성공",data=result)
   except Exception as e:
     conn.rollback()
     # 에러 발생시 예외 메세지 (detail)를 전달 
