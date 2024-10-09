@@ -28,37 +28,28 @@ CLIENT_ID = os.environ['SUMMARY_CLIENT_ID']
 CLIENT_SECRET = os.environ['SUMMARY_CLIENT_SECRET']
 
 # 뉴스 목록 가져오는 API(keyword별 itemCount 만큼 조회 + 페이징 기능 추가)
-@router.get("/getNewsList/{byDate}/{keyword}/{page}/{itemCount}", response_model=Response_NewsList)
-def getNewsList(byDate: str,keyword: str, page: int, itemCount: int):
+@router.get("/getNewsList/{keyword}/{page}/{itemCount}", response_model=Response_NewsList)
+def getNewsList(keyword: str, page: int, itemCount: int):
   conn,cur = mysql_create_session()
   end = page * itemCount
   start = end - itemCount
   
   try:
-    # 뉴스 목록 날짜별 분류 (오늘의 뉴스, 주간 뉴스, 월별 뉴스)
-    dateFilter = ''
-    if date == 'today':
-      dateFilter = 'DATE(a.article_createat) = CURDATE()'
-    elif date == 'week':
-      dateFilter = 'YEARWEEK(a.article_createat, 1) = YEARWEEK(CURDATE(), 1)'
-    elif date == 'month':
-      dateFilter = 'YEAR(a.article_createat) = YEAR(CURDATE()) AND MONTH(a.article_createat) = MONTH(CURDATE())'
-
-    # 뉴스 갯수
+    # 뉴스 총 갯수
     sql0 = 'SELECT count(*) FROM Article'
     cur.execute(sql0)
     total = cur.fetchone()['count(*)']
 
     if keyword.strip().lower() == 'normal':
       # 키워드가 normal이면 키워드를 통합하여 뉴스를 조회
-      sql = f'SELECT article_id, article_title, article_url, article_content, article_image, article_createat FROM Article WHRER {dateFilter} ORDER BY article_id DESC LIMIT %s, %s'
+      sql = 'SELECT article_id, article_title, article_url, article_content, article_image, article_createat FROM Article ORDER BY article_id DESC LIMIT %s, %s'
       cur.execute(sql,(start, itemCount))
       result = cur.fetchall()
       data = {"total":total,"news":result}
       return Response_NewsList(status=200, message="뉴스 조회 성공",data=data)
     else:
       # 입력한 키워드를 기준으로 뉴스 조회
-      sql = f'SELECT a.article_id, a.article_title, a.article_url, a.article_content, a.article_image, a.article_createat FROM Keywords k JOIN Article_Keyword ak ON k.keyword_id = ak.keyword_id JOIN Article a ON ak.article_id = a.article_id WHERE k.keyword = %s AND {dateFilter} ORDER BY a.article_id DESC LIMIT %s, %s'
+      sql = 'SELECT a.article_id, a.article_title, a.article_url, a.article_content, a.article_image, a.article_createat FROM Keywords k JOIN Article_Keyword ak ON k.keyword_id = ak.keyword_id JOIN Article a ON ak.article_id = a.article_id WHERE k.keyword = %s ORDER BY a.article_id DESC LIMIT %s, %s'
       cur.execute(sql,(keyword, start, itemCount))
       result = cur.fetchall()
       data = {"total":total,"news":result}
@@ -141,11 +132,15 @@ def highestViews():
     sql = 'SELECT article_id, article_title FROM Article WHERE article_createat = %s ORDER BY article_views DESC, article_id DESC limit %s'
     cur.execute(sql, (today, count))
     result = cur.fetchall()
-    if(len(result) == 10):
-      return Response_NewsTitle(status=200, message="조회수 별 뉴스 조회 성공", data=result)
-    else:
+    
+    if len(result) == 0:
       raise HTTPException(status_code=404, detail="오늘의 뉴스가 존재하지 않습니다.")
+    
+    return Response_NewsTitle(status=200, message="조회수 별 뉴스 조회 성공", data=result)
+
   except Exception as e:
+    if e.detail == "오늘의 뉴스가 존재하지 않습니다.":
+      raise HTTPException(status_code=404, detail="오늘의 뉴스가 존재하지 않습니다.")
     raise HTTPException(status_code=404, detail="조회수 별 뉴스 조회 실패")
   finally:
     cur.close()
@@ -237,7 +232,8 @@ def likeNewsLists(access_token: str = Depends(oauth2_scheme)):
     sql2 = 'SELECT * FROM Article a JOIN User_Article ua ON ua.article_id = a.article_id WHERE ua.user_id = %s AND ua.user_article_like = 1'
     cur.execute(sql2, (user_id,))
     result = cur.fetchall()
-    return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
+    data = {"news":result}
+    return Response_NewsList(status=200, message="뉴스 조회 성공",data=data)
   except Exception as e:
     print(e)
     raise HTTPException(status_code=404, detail="뉴스 조회 실패")
@@ -332,7 +328,9 @@ def scrapNewsLists(access_token: str = Depends(oauth2_scheme)):
     sql2 = 'SELECT * FROM Article a JOIN User_Article ua ON ua.article_id = a.article_id WHERE ua.user_id = %s AND ua.user_article_scrap = 1'
     cur.execute(sql2, (user_id,))
     result = cur.fetchall()
-    return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
+    data = {"news":result}
+
+    return Response_NewsList(status=200, message="뉴스 조회 성공",data=data)
   except Exception as e:
     print(e)
     raise HTTPException(status_code=404, detail="뉴스 조회 실패")
@@ -441,7 +439,6 @@ def deleteComment(data: Delete_Comment, access_token: str = Depends(oauth2_schem
     conn.commit()
     return Response_Comment(status=200, message="댓글 삭제 성공")
   except Exception as e:
-    # print(e)
     raise HTTPException(status_code=403, detail="댓글 삭제 실패")
   finally:
     cur.close()
@@ -516,7 +513,7 @@ def searchNews(searchText: str):
     cur.close()
     conn.close()
 
-# 메인 화면 - 키워드별 요약 기사(3개)
+# 메인 화면 - 키워드별 요약 기사(3개 요약하여 반환)
 @router.get("/recommend/{keyword}", response_model=Response_Summary)
 def recommendNews(keyword: str):
   conn, cur = mysql_create_session()
@@ -526,7 +523,7 @@ def recommendNews(keyword: str):
     sql1 = 'SELECT a.article_id, a.article_title, a.article_content, a.article_image, a.article_summary FROM Keywords k JOIN Article_Keyword ak ON k.keyword_id = ak.keyword_id JOIN Article a ON ak.article_id = a.article_id WHERE k.keyword = %s ORDER BY a.article_like DESC LIMIT 3'
     cur.execute(sql1,(keyword,))
     news = cur.fetchall()
-    print(news)
+
     for new in news:
       article_id = new['article_id']
       article_content = new['article_content']
@@ -539,7 +536,6 @@ def recommendNews(keyword: str):
         sql2 = 'UPDATE Article SET article_summary = %s WHERE article_id = %s'
         cur.execute(sql2, (summary, article_id))
         conn.commit()
-
 
       if new['article_summary']:
         del(new['article_content'])
@@ -555,7 +551,6 @@ def recommendNews(keyword: str):
     data = {"news":news}
     return Response_Summary(status=200, message="요약 성공", data=data)
   except Exception as e:
-    print(e)
     raise HTTPException(status_code=404, detail="요약 실패")
   finally:
     cur.close()
