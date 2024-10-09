@@ -6,7 +6,6 @@ import pymysql
 import requests
 import ssl
 from bs4 import BeautifulSoup
-from fastapi import APIRouter
 from database import mysql_create_session
 from dotenv import load_dotenv
 from datetime import datetime
@@ -39,7 +38,7 @@ chrome_options.add_argument('--no-sandbox')
 chrome_options.add_argument('--disable-dev-shm-usage')
 
 # 뉴스 키워드 
-KEYWORDS = ["정치", "과학", "스포츠", "사회", "시사", "경제", "생활"]
+KEYWORDS = ["정치", "경제", "사회", "과학", "연예", "스포츠"]
 
 def get_news_from_api():
   conn,cur = mysql_create_session()

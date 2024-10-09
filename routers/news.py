@@ -1,5 +1,8 @@
 import os
 import sys
+import requests
+import json
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from database import mysql_create_session
@@ -7,6 +10,7 @@ from dotenv import load_dotenv
 from schemas.news import *
 from datetime import date
 from tokens import *
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -19,23 +23,37 @@ router = APIRouter(
 # 헤더에 토큰 값 가져오기 위한 객체
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# 뉴스 목록 가져오는 API(keyword별 itemCount 만큼 조회)
-@router.get("/getNewsList/{keyword}/{itemCount}", response_model=Response_NewsList)
-def getNewsList(keyword: str, itemCount: int):
+# 요약 서비스 API 키
+CLIENT_ID = os.environ['SUMMARY_CLIENT_ID']
+CLIENT_SECRET = os.environ['SUMMARY_CLIENT_SECRET']
+
+# 뉴스 목록 가져오는 API(keyword별 itemCount 만큼 조회 + 페이징 기능 추가)
+@router.get("/getNewsList/{keyword}/{page}/{itemCount}", response_model=Response_NewsList)
+def getNewsList(keyword: str, page: int, itemCount: int):
   conn,cur = mysql_create_session()
+  end = page * itemCount
+  start = end - itemCount
+  
   try:
-    if keyword == 'normal':
+    # 뉴스 총 갯수
+    sql0 = 'SELECT count(*) FROM Article'
+    cur.execute(sql0)
+    total = cur.fetchone()['count(*)']
+
+    if keyword.strip().lower() == 'normal':
       # 키워드가 normal이면 키워드를 통합하여 뉴스를 조회
-      sql = 'SELECT article_id, article_title, article_url, article_content, article_image FROM Article ORDER BY article_id DESC LIMIT %s'
-      cur.execute(sql,(itemCount))
+      sql = 'SELECT article_id, article_title, article_url, article_content, article_image, article_createat FROM Article ORDER BY article_id DESC LIMIT %s, %s'
+      cur.execute(sql,(start, itemCount))
       result = cur.fetchall()
-      return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
+      data = {"total":total,"news":result}
+      return Response_NewsList(status=200, message="뉴스 조회 성공",data=data)
     else:
       # 입력한 키워드를 기준으로 뉴스 조회
-      sql = 'SELECT a.article_id, a.article_title, a.article_url, a.article_content, a.article_image FROM Keywords k JOIN Article_Keyword ak ON k.keyword_id = ak.keyword_id JOIN Article a ON ak.article_id = a.article_id WHERE k.keyword = %s ORDER BY a.article_id DESC LIMIT %s'
-      cur.execute(sql,(keyword,itemCount))
+      sql = 'SELECT a.article_id, a.article_title, a.article_url, a.article_content, a.article_image, a.article_createat FROM Keywords k JOIN Article_Keyword ak ON k.keyword_id = ak.keyword_id JOIN Article a ON ak.article_id = a.article_id WHERE k.keyword = %s ORDER BY a.article_id DESC LIMIT %s, %s'
+      cur.execute(sql,(keyword, start, itemCount))
       result = cur.fetchall()
-      return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
+      data = {"total":total,"news":result}
+      return Response_NewsList(status=200, message="뉴스 조회 성공",data=data)
   except Exception as e:
     raise HTTPException(status_code=404, detail="뉴스 조회 실패")
   finally:
@@ -114,11 +132,15 @@ def highestViews():
     sql = 'SELECT article_id, article_title FROM Article WHERE article_createat = %s ORDER BY article_views DESC, article_id DESC limit %s'
     cur.execute(sql, (today, count))
     result = cur.fetchall()
-    if(len(result) == 10):
-      return Response_NewsTitle(status=200, message="조회수 별 뉴스 조회 성공", data=result)
-    else:
+    
+    if len(result) == 0:
       raise HTTPException(status_code=404, detail="오늘의 뉴스가 존재하지 않습니다.")
+    
+    return Response_NewsTitle(status=200, message="조회수 별 뉴스 조회 성공", data=result)
+
   except Exception as e:
+    if e.detail == "오늘의 뉴스가 존재하지 않습니다.":
+      raise HTTPException(status_code=404, detail="오늘의 뉴스가 존재하지 않습니다.")
     raise HTTPException(status_code=404, detail="조회수 별 뉴스 조회 실패")
   finally:
     cur.close()
@@ -210,7 +232,8 @@ def likeNewsLists(access_token: str = Depends(oauth2_scheme)):
     sql2 = 'SELECT * FROM Article a JOIN User_Article ua ON ua.article_id = a.article_id WHERE ua.user_id = %s AND ua.user_article_like = 1'
     cur.execute(sql2, (user_id,))
     result = cur.fetchall()
-    return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
+    data = {"news":result}
+    return Response_NewsList(status=200, message="뉴스 조회 성공",data=data)
   except Exception as e:
     print(e)
     raise HTTPException(status_code=404, detail="뉴스 조회 실패")
@@ -305,7 +328,9 @@ def scrapNewsLists(access_token: str = Depends(oauth2_scheme)):
     sql2 = 'SELECT * FROM Article a JOIN User_Article ua ON ua.article_id = a.article_id WHERE ua.user_id = %s AND ua.user_article_scrap = 1'
     cur.execute(sql2, (user_id,))
     result = cur.fetchall()
-    return Response_NewsList(status=200, message="뉴스 조회 성공",data=result)
+    data = {"news":result}
+
+    return Response_NewsList(status=200, message="뉴스 조회 성공",data=data)
   except Exception as e:
     print(e)
     raise HTTPException(status_code=404, detail="뉴스 조회 실패")
@@ -414,8 +439,119 @@ def deleteComment(data: Delete_Comment, access_token: str = Depends(oauth2_schem
     conn.commit()
     return Response_Comment(status=200, message="댓글 삭제 성공")
   except Exception as e:
-    # print(e)
     raise HTTPException(status_code=403, detail="댓글 삭제 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+# 뉴스 요약 API
+@router.get("/summary/{article_id}", response_model=Response_Summary)
+def summaryNews(article_id:int):
+  conn, cur = mysql_create_session()
+  
+  # 만약 해당 article_id에 해당하는 기사에 요약된 내용이 있으면 그 내용 반환
+  try:
+    sql1 = 'SELECT article_id, article_title, article_image, article_summary, article_content FROM Article WHERE article_id = %s'
+    cur.execute(sql1,(article_id,))
+    result = cur.fetchone()
+    article_summary = result['article_summary']
+    article_content = result['article_content']
+
+    if article_summary:
+      del(result['article_content'])
+      return Response_Summary(status=200, message="요약 성공", data=result)
+    else:
+      del(result['article_content'])
+      del(result['article_summary'])
+      summary = summaryNews(article_content)
+      result['article_summary'] = summary
+      sql2 = 'UPDATE Article SET article_summary = %s WHERE article_id = %s'
+      cur.execute(sql2, (summary, article_id))
+      conn.commit()
+
+      return Response_Summary(status=200, message="요약 성공", data=result)
+  except Exception as e:
+    raise HTTPException(status_code=404, detail="요약 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+# 네이버 클로바 뉴스요약 api 이용한 뉴스 요약 함수
+def summaryNews(article_content:str):
+  content = truncate(article_content)
+  url = 'https://naveropenapi.apigw.ntruss.com/text-summary/v1/summarize'
+  data = {"document" : {"content" : content}, "option" : {"language" : "ko", "model" : "news", "summaryCount" : 3}}
+  headers = {"X-NCP-APIGW-API-KEY-ID":CLIENT_ID, "X-NCP-APIGW-API-KEY":CLIENT_SECRET, "Content-Type":"application/json"}
+  response = requests.post(url, data=json.dumps(data).encode('UTF-8'), headers=headers)
+  if response.status_code == 200:
+    result = response.json()
+    summary = result['summary']
+    return summary
+  else:
+    raise HTTPException(status_code=500, detail="요약 실패")
+
+# 네이버 클로바 뉴스요약 api 2000자 제한 -> 2000자까지 자르기
+def truncate(content:str):
+    if len(content) > 2000:
+        return content[:2000]
+    return content
+ 
+
+# 기사 검색 API 
+@router.get("/search/{searchText}", response_model=Response_News)
+def searchNews(searchText: str):
+  conn, cur = mysql_create_session()
+  try:
+    # 기사의 내용과 제목을 기준으로 검색어 해당하는 기사 찾기 (높은 조회수를 기준으로 일단 10개 조회 -> 페이지네이션을 한다면 수정 예정)
+    sql = 'SELECT * FROM Article WHERE article_content LIKE %s OR article_title LIKE %s ORDER BY article_views DESC LIMIT 10'
+    cur.execute(sql, (f"%{searchText}%", f"%{searchText}%"))
+    result = cur.fetchall()
+    return Response_News(status=200, message="검색 성공", data={"news": result})
+  except Exception as e:
+    raise HTTPException(status_code=404, detail="검색 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+# 메인 화면 - 키워드별 요약 기사(3개 요약하여 반환)
+@router.get("/recommend/{keyword}", response_model=Response_Summary)
+def recommendNews(keyword: str):
+  conn, cur = mysql_create_session()
+  print(keyword)
+  # 만약 해당 article_id에 해당하는 기사에 요약된 내용이 있으면 그 내용 반환
+  try:
+    sql1 = 'SELECT a.article_id, a.article_title, a.article_content, a.article_image, a.article_summary FROM Keywords k JOIN Article_Keyword ak ON k.keyword_id = ak.keyword_id JOIN Article a ON ak.article_id = a.article_id WHERE k.keyword = %s ORDER BY a.article_like DESC LIMIT 3'
+    cur.execute(sql1,(keyword,))
+    news = cur.fetchall()
+
+    for new in news:
+      article_id = new['article_id']
+      article_content = new['article_content']
+
+      if not new['article_summary']:
+        summary = summaryNews(article_content)  # 요약 생성
+        new['article_summary'] = summary
+        
+        # 요약을 DB에 업데이트
+        sql2 = 'UPDATE Article SET article_summary = %s WHERE article_id = %s'
+        cur.execute(sql2, (summary, article_id))
+        conn.commit()
+
+      if new['article_summary']:
+        del(new['article_content'])
+      else:
+        del(new['article_content'])
+        del(new['article_summary'])
+        summary = summaryNews(article_content)
+        new['article_summary'] = summary
+        sql2 = 'UPDATE Article SET article_summary = %s WHERE article_id = %s'
+        cur.execute(sql2, (summary, article_id))
+        conn.commit()
+
+    data = {"news":news}
+    return Response_Summary(status=200, message="요약 성공", data=data)
+  except Exception as e:
+    raise HTTPException(status_code=404, detail="요약 실패")
   finally:
     cur.close()
     conn.close()
