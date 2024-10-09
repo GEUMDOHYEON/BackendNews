@@ -4,9 +4,6 @@ from pydantic import BaseModel
 class Access_Token(BaseModel):
     access_token:str
 
-# refresh_토큰 DTO
-class Refresh_Token(BaseModel):
-    refresh_token:str
 
 # access_토큰 재발급 DTO
 class Response_Reissue(BaseModel):
