@@ -29,6 +29,7 @@ class CommentRead_Model (BaseModel):
 class CommentEdit_Model (BaseModel):
     comment_content : str
     community_id : str
+    comment_id : str
     
 class CommentDelete_Model (BaseModel):
     comment_id : str
