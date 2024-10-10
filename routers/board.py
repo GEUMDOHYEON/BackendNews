@@ -257,7 +257,7 @@ def commentWrite(commentWrite_data : CommentWrite_Model, access_token: str = Dep
   try:
     # 글 생성 
     # 입력 받은 값을 가져오기
-    sql = "INSERT INTO Community_Comments (user_id, community_id, comment_content, community_createat) VALUES (%s, %s, %s, %s)"
+    sql = "INSERT INTO Community_Comments (user_id, community_id, comment_content, comment_createat) VALUES (%s, %s, %s, %s)"
     cur.execute(sql,(user_id, community_id,comment_content,comment_createat))
     conn.commit()
     return Response_PostWrite_Model(status=201, message="업로드 성공")
@@ -288,6 +288,7 @@ def commentWrite(commentEdit_data : CommentEdit_Model, access_token: str = Depen
   #댓글 정보 - 내용, 작성 시간
   comment_content = commentEdit_data.comment_content
   community_id = commentEdit_data.community_id
+  comment_id = commentEdit_data.comment_id
   
   # print(community_content)
   # print(community_title)
@@ -301,8 +302,8 @@ def commentWrite(commentEdit_data : CommentEdit_Model, access_token: str = Depen
   try:
     # 글 생성 
     # 입력 받은 값을 가져오기
-    sql = "UPDATE Community_Comments SET community_content = %s, community_createat = %s WHERE community_id = %s AND user_id = %s"
-    cur.execute(sql,(comment_content,comment_createat, community_id, user_id))
+    sql = "UPDATE Community_Comments SET comment_content = %s, comment_createat = %s WHERE community_id = %s AND user_id = %s AND comment_id = %s"
+    cur.execute(sql,(comment_content,comment_createat, community_id, user_id, comment_id))
     conn.commit()
     return Response_PostWrite_Model(status=201, message="수정 성공")
   except Exception as e:
@@ -314,7 +315,7 @@ def commentWrite(commentEdit_data : CommentEdit_Model, access_token: str = Depen
     cur.close()
   
 # 댓글 목록 불러오기
-@router.post("/postUpload", response_model=Response_PostUpload_Model)
+@router.post("/CommunityCommentUpload", response_model=Response_PostUpload_Model)
 def postUpload(postUpload_data : PostUpload_Model):
   conn, cur = mysql_create_session()
 
@@ -335,7 +336,7 @@ def postUpload(postUpload_data : PostUpload_Model):
     conn.close()  
 
 # 커뮤니티 댓글 삭제 API
-@router.delete("/postRemove", response_model=Response_PostRemove_Model)
+@router.delete("/CommunityCommentRemove", response_model=Response_PostRemove_Model)
 def postRemove(commentDelete_data: CommentDelete_Model, access_token: str = Depends(oauth2_scheme)):
   # MySQL과 상호작용하기 위해 연결하는 cur 객체
   conn, cur = mysql_create_session()
