@@ -25,7 +25,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 # 게시판 글 작성
-@router.post("/postWrite", response_model = Response_PostWrite_Model)
+@router.post("/CommunityPostWrite", response_model = Response_PostWrite_Model)
 def postWrite(postWrite_data : PostWrite_Model, access_token: str = Depends(oauth2_scheme)):
   # mysql 과 상호작용하기 위해 연결해주는 cur 객체
   conn, cur = mysql_create_session()
@@ -65,14 +65,14 @@ def postWrite(postWrite_data : PostWrite_Model, access_token: str = Depends(oaut
   except Exception as e:
     conn.rollback()
     # 에러 발생시 예외 메세지 (detail)를 전달 
-    raise HTTPException(status_code=401, detail=str(e))
+    raise HTTPException(status_code=403, detail="업로드 실패")
   finally:
     conn.close()
     cur.close()
   
 
 # 게시판 글 수정 
-@router.put("/postEdit", response_model = Response_PostEdit_Model)
+@router.put("/CommunitypostEdit", response_model = Response_PostEdit_Model)
 def postEdit(postEdit_data : PostEdit_Model, access_token: str = Depends(oauth2_scheme)):
   # mysql 과 상호작용하기 위해 연결해주는 cur 객체
   conn, cur = mysql_create_session()
@@ -115,14 +115,14 @@ def postEdit(postEdit_data : PostEdit_Model, access_token: str = Depends(oauth2_
   except Exception as e:
     conn.rollback()
     # 에러 발생시 예외 메세지 (detail)를 전달 
-    raise HTTPException(status_code=401, detail=str(e))
+    raise HTTPException(status_code=404, detail="수정 실패")
   finally:
     conn.close()
     cur.close()
 
 
 # 게시판 목록 불러오기
-@router.post("/postUpload", response_model=Response_PostUpload_Model)
+@router.post("/CommunitypostUpload", response_model=Response_PostUpload_Model)
 def postUpload(postUpload_data : PostUpload_Model):
   conn, cur = mysql_create_session()
 
@@ -141,19 +141,19 @@ def postUpload(postUpload_data : PostUpload_Model):
   except Exception as e:
     conn.rollback()
     # 에러 발생시 예외 메세지 (detail)를 전달 
-    raise HTTPException(status_code=401, detail=str(e))
+    raise HTTPException(status_code=403, detail="게시판 목록 불러오기 실패")
   finally:
     cur.close()
     conn.close()  
 
 
 # 게시판 세부정보 불러오기 API
-@router.post("/postRead", response_model=Response_PostRead_Model)
+@router.post("/CommunitypostRead", response_model=Response_PostRead_Model)
 def postRead(postRead_data : PostRead_Model):
   conn, cur = mysql_create_session()
   
   community_id = postRead_data.community_id
-  print(community_id)
+  # print(community_id)
 
   
   # 조회수
@@ -161,21 +161,27 @@ def postRead(postRead_data : PostRead_Model):
   cur.execute(sql1, (community_id,))
 
   # 검색 후 조회수 1 증가
-  community_search = cur.fetchone()['community_search'] + 1
-  sql2 = 'UPDATE Community SET community_search = %s WHERE community_id = %s'
-  cur.execute(sql2, (community_search, community_id,))
-  conn.commit()
+  try:
+    community_search = cur.fetchone()['community_search'] + 1
+    sql2 = 'UPDATE Community SET community_search = %s WHERE community_id = %s'
+    cur.execute(sql2, (community_search, community_id,))
+    conn.commit()
   
-  sql = 'SELECT community_id,community_title,community_createat,user_id,community_search FROM Community WHERE community_id = %s;'
-  cur.execute(sql,(community_id))
-  data = cur.fetchall()
+    sql = 'SELECT community_id,community_title,community_createat,user_id,community_search FROM Community WHERE community_id = %s;'
+    cur.execute(sql,(community_id))
+    data = cur.fetchall()
+    return Response_PostRead_Model(status=201, message="게시물 세부정보 가져오기 성공", data=data)
+  except Exception as e:
+    conn.rollback()
+    # 에러 발생시 예외 메세지 (detail)를 전달 
+    raise HTTPException(status_code=403, detail="게시물 세부정보 불러오기 실패")
+  finally:
+    cur.close()
+    conn.close()  
   
-  cur.close()
-  conn.close()
-  return Response_PostRead_Model(status=201, message="게시물 가져오기 성공", data=data)
 
 # 게시글 삭제 API
-@router.delete("/postRemove", response_model=Response_PostRemove_Model)
+@router.delete("/CommunitypostRemove", response_model=Response_PostRemove_Model)
 def postRemove(postRemove_data: PostRemove_Model, access_token: str = Depends(oauth2_scheme)):
   # MySQL과 상호작용하기 위해 연결하는 cur 객체
   conn, cur = mysql_create_session()
@@ -264,7 +270,7 @@ def commentWrite(commentWrite_data : CommentWrite_Model, access_token: str = Dep
   except Exception as e:
     conn.rollback()
     # 에러 발생시 예외 메세지 (detail)를 전달 
-    raise HTTPException(status_code=401, detail=str(e))
+    raise HTTPException(status_code=403, detail="업로드 실패")
   finally:
     conn.close()
     cur.close()
@@ -309,35 +315,34 @@ def commentWrite(commentEdit_data : CommentEdit_Model, access_token: str = Depen
   except Exception as e:
     conn.rollback()
     # 에러 발생시 예외 메세지 (detail)를 전달 
-    raise HTTPException(status_code=401, detail=str(e))
+    raise HTTPException(status_code=404, detail="수정 실패")
   finally:
     conn.close()
     cur.close()
   
 # 댓글 목록 불러오기
-@router.post("/CommunityCommentUpload", response_model=Response_PostUpload_Model)
-def postUpload(postUpload_data : PostUpload_Model):
+@router.post("/CommunityCommentUpload", response_model=Response_CommentRead_Model)
+def postUpload(commentRead_data : CommentRead_Model):
   conn, cur = mysql_create_session()
 
-  end = postUpload_data.page * postUpload_data.itemCount
-  start = end - postUpload_data.itemCount
+  community_id = commentRead_data.community_id
 
   try:
-    sql = 'SELECT count(*) FROM Community_Comments'
-    cur.execute(sql)
+    sql = 'SELECT comment_id,community_id,user_id,comment_content,comment_createat FROM Community_Comments WHERE community_id = %s;'
+    cur.execute(sql,(community_id,))
     result = cur.fetchall()
-    return Response_PostUpload_Model(status=200, message="커뮤니티별 목록 불러오기 성공",data=result)
+    return Response_PostUpload_Model(status=200, message="커뮤니티별 댓글 목록 불러오기 성공",data=result)
   except Exception as e:
     conn.rollback()
     # 에러 발생시 예외 메세지 (detail)를 전달 
-    raise HTTPException(status_code=401, detail=str(e))
+    raise HTTPException(status_code=403, detail="커뮤니티별 댓글 목록 불러오기 실패")
   finally:
     cur.close()
     conn.close()  
 
 # 커뮤니티 댓글 삭제 API
-@router.delete("/CommunityCommentRemove", response_model=Response_PostRemove_Model)
-def postRemove(commentDelete_data: CommentDelete_Model, access_token: str = Depends(oauth2_scheme)):
+@router.delete("/CommunityCommentRemove", response_model=Response_CommentRemove_Model)
+def postRemove(commentRemove_data: CommentRemove_Model, access_token: str = Depends(oauth2_scheme)):
   # MySQL과 상호작용하기 위해 연결하는 cur 객체
   conn, cur = mysql_create_session()
 
@@ -350,7 +355,7 @@ def postRemove(commentDelete_data: CommentDelete_Model, access_token: str = Depe
   # print(access_user_id)
 
   # 삭제할 게시글 ID
-  comment_id = commentDelete_data.comment_id
+  comment_id = commentRemove_data.comment_id
   # print(community_id)
 
   try:
@@ -371,8 +376,8 @@ def postRemove(commentDelete_data: CommentDelete_Model, access_token: str = Depe
       raise HTTPException(status_code=403, detail="게시글을 삭제할 권한이 없습니다.")
 
     # 게시글 삭제
-    sql = 'DELETE FROM Communit_Comments WHERE comment_id = %s;'
-    cur.execute(sql, (comment_id,))
+    sql = 'DELETE FROM Community_Comments WHERE comment_id = %s;'
+    cur.execute(sql, (comment_id))
     conn.commit()
 
   except Exception as e:

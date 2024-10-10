@@ -24,14 +24,14 @@ class CommentWrite_Model (BaseModel):
     comment_content : str
     
 class CommentRead_Model (BaseModel):
-    comment_id : str
+    community_id : str
 
 class CommentEdit_Model (BaseModel):
     comment_content : str
     community_id : str
     comment_id : str
     
-class CommentDelete_Model (BaseModel):
+class CommentRemove_Model (BaseModel):
     comment_id : str
 
 class Response_PostWrite_Model (BaseModel):
@@ -63,3 +63,12 @@ class Response_CommentWrite_Model (BaseModel):
 class Response_CommentEdit_Model (BaseModel):
     status : int
     message : str
+    
+class Response_CommentRemove_Model (BaseModel):
+    status : int
+    message : str
+    
+class Response_CommentRead_Model (BaseModel):
+    status : int
+    message : str
+    data : list
