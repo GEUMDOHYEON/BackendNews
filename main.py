@@ -1,5 +1,3 @@
-from fastapi import FastAPI
-from routers import users, news, board
 from fastapi import FastAPI, Request, BackgroundTasks
 from routers import users, news,board
 # CORS 정책
