@@ -20,14 +20,18 @@ class PostRemove_Model (BaseModel):
     community_id : str
 
 class CommentWrite_Model (BaseModel):
-    comment_id : str
+    community_id : str
     comment_content : str
-    comment_create : str
-    access_token : str
     
-class CommentUpload_Model (BaseModel):
+class CommentRead_Model (BaseModel):
     comment_id : str
-    access_token : str
+
+class CommentEdit_Model (BaseModel):
+    comment_content : str
+    community_id : str
+    
+class CommentDelete_Model (BaseModel):
+    comment_id : str
 
 class Response_PostWrite_Model (BaseModel):
     status : int
@@ -48,5 +52,13 @@ class Response_PostRead_Model (BaseModel):
     data : list
     
 class Response_PostRemove_Model (BaseModel):
+    status : int
+    message : str
+
+class Response_CommentWrite_Model (BaseModel):
+    status : int
+    message : str
+    
+class Response_CommentEdit_Model (BaseModel):
     status : int
     message : str
