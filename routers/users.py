@@ -1,15 +1,20 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile
 from fastapi.security import OAuth2PasswordBearer
 import os
 from dotenv import load_dotenv
 from fastapi import HTTPException, Depends, Request
 import bcrypt
 import jwt
+import base64
+from PIL import Image
+from datetime import date
+from io import BytesIO
 from database import mysql_create_session
 from tokens import *
 from schemas.user import *
 from schemas.token import *
 from routers.news import findUserID
+from uploadimage import upload_image
 
 #jwt에 필요한 전역변수
 SECRET_KEY = os.environ["SECRET_KEY"]
@@ -80,13 +85,19 @@ def register(user:Register_User):
     raise HTTPException(status_code=404,detail="회원가입 실패")
 
     
-
+  
   #패스워드 해싱
   hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
-
   try:
-    sql3 = 'INSERT INTO Users(user_email, user_name, user_password,user_number,user_nickname,user_age) VALUES (%s, %s, %s, %s, %s, %s)'
-    cur.execute(sql3,(user_email,user_name,hashed_password,user_number,user_nickname,user_age))
+    # 데이터 스토리지 프로필 고유 id생성
+    sql3 = 'INSERT INTO Data_Storage(storage_original_filename, storage_modified_filename, storage_filepath) VALUES (%s,%s,%s)'
+    # 사진 경로는 ./static/profile/Basic_profile.png
+    cur.execute(sql3,("Basic_profile","Basic_profile","./static/profile/Basic_profile.png"))
+    storage_id = cur.lastrowid
+
+    sql4 = 'INSERT INTO Users(storage_id, user_email, user_name, user_password,user_number,user_nickname,user_age) VALUES (%s, %s, %s, %s, %s, %s,%s)'
+    cur.execute(sql4,(storage_id,user_email,user_name,hashed_password,user_number,user_nickname,user_age))
+
     conn.commit()
     return Response_Register(status=201, message="회원가입 성공")
   except Exception as e:
@@ -264,7 +275,7 @@ def autologinToken(access_token: str = Depends(oauth2_scheme)):
 
 # 아이디 찾기 API
 @router.post("/findID",response_model=Response_findID)
-def keywordDelete(data:Find_ID):
+def findID(data:Find_ID):
   """
   아이디를 찾습니다.
   """
@@ -291,7 +302,7 @@ def keywordDelete(data:Find_ID):
 
 # 비밀번호 재설정 API
 @router.post("/resetPassword",response_model=Response_resetPassword)
-def keywordDelete(data:Reset_Password):
+def resetPassword(data:Reset_Password):
   """
   비밀번호를 재설정합니다.
   """
@@ -308,7 +319,6 @@ def keywordDelete(data:Reset_Password):
     cur.execute(sql1,(email,name,number))
     result = cur.fetchone()
 
-    conn.commit()
 
     # 일치하지 않을 시
     if result is None:
@@ -319,15 +329,132 @@ def keywordDelete(data:Reset_Password):
     #패스워드 해싱
     new_hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
 
-    sql2 = "UPDATE Users SET user_password = %s WHERE user_id = %s"
+    sql2 = 'UPDATE Users SET user_password = "%s" WHERE user_id = %s'
     cur.execute(sql2,(new_hashed_password,user_id))
     conn.commit()
 
-    return Response_findID(status=201, message="비밀번호 변경 성공")
+    return Response_resetPassword(status=201, message="비밀번호 변경 성공")
   
-  except:
+  except Exception as e:
     conn.rollback()
     raise HTTPException(status_code=403, detail="비밀번호 변경 실패")
   finally:
     cur.close()
     conn.close()
+
+
+# 프로필 이미지 조회 API
+@router.get("/profileImage",response_model=Response_profileImage)
+def profileImages(access_token: str = Depends(oauth2_scheme)):
+  """
+  프로필 이미지를 조회합니다.
+  """
+
+  # 사용자 검증
+  payload = access_expirecheck(access_token)
+  email = payload['email']
+  user_id = findUserID(email)
+  conn, cur = mysql_create_session()
+  try:
+    sql = 'SELECT storage_filepath FROM Data_Storage WHERE storage_id = (SELECT storage_id FROM Users WHERE user_id = %s)'
+    cur.execute(sql,(user_id))
+    row = cur.fetchone()
+    file_path = row['storage_filepath']
+
+    conn.commit()
+
+    image = Image.open(file_path)
+
+    # 이미지 파일을 Base64로 인코딩
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")  # 이미지 포맷에 맞게 변경
+    img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+    return Response_profileImage(status=200,message="이미지 조회 성공",data=img_str)
+  except:
+    conn.rollback()
+    raise HTTPException(status_code=403, detail="이미지 조회 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+
+
+# 프로필 이미지 수정 API
+@router.post("/profileImageChange",response_model=Response_profileImageChange)
+def profileImageChange(imagedata: UploadFile, access_token: str = Depends(oauth2_scheme)):
+  """
+  프로필 이미지를 수정합니다.
+  """
+  # 사용자 검증
+  payload = access_expirecheck(access_token)
+  email = payload['email']
+  user_id = findUserID(email)
+
+  image_payload = upload_image("profile",imagedata)
+
+  original_filename = image_payload['original_filename']
+  modified_filename = image_payload['modified_filename']
+  filepath = image_payload['filepath']
+
+  conn, cur = mysql_create_session()
+  try:
+    sql2 = 'UPDATE Data_Storage SET storage_original_filename = %s, storage_modified_filename = %s, storage_filepath = %s WHERE storage_id = (SELECT storage_id FROM Users WHERE user_id=%s)'
+    cur.execute(sql2,(original_filename,modified_filename,filepath,user_id))
+
+    conn.commit()
+    return Response_profileImageChange(status=201, message="이미지 수정 성공")
+  
+  except:
+    conn.rollback()
+    raise HTTPException(status_code=403, detail="이미지 수정 실패")
+  finally:
+    cur.close()
+    conn.close()
+
+
+
+# 회원 탈퇴 API
+@router.delete("/secession",response_model=Response_Secession)
+def secession(access_token: str = Depends(oauth2_scheme)):
+  """
+  회원을 탈퇴합니다
+  """
+
+  # 사용자 검증
+  payload = access_expirecheck(access_token)
+  email = payload['email']
+  user_id = findUserID(email)
+
+  conn, cur = mysql_create_session()
+  today = date.today()
+  try:
+    sql1 = 'SELECT * FROM Users WHERE user_id = %s'
+    cur.execute(sql1,(user_id))
+    row = cur.fetchone()
+
+    storage_id = row['storage_id']
+    user_email = row['user_email']
+    user_password = row['user_password']
+    user_name = row['user_name']
+    user_number = row['user_number']
+    user_nickname = row['user_nickname']
+    user_age = row['user_age']
+
+
+    sql2 = 'INSERT INTO Deleted_Users(storage_id, deleted_user_email, deleted_user_password, deleted_user_name, deleted_user_number, deleted_user_nickname, deleted_user_age, deleted_user_deletedat) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)'
+    print(sql2,(storage_id,user_email,user_password,user_name,user_number,user_nickname, user_age,today))
+    cur.execute(sql2,(storage_id,user_email,user_password,user_name,user_number,user_nickname, user_age,today))
+
+    sql3 = 'DELETE FROM Users WHERE user_id = %s'
+    cur.execute(sql3,(user_id))
+    
+    conn.commit()
+    return Response_Secession(status=201,message="회원 탈퇴 성공")
+  
+  except Exception as e:
+      conn.rollback()
+      raise HTTPException(status_code=404, detail="회원탈퇴 실패")
+  finally:
+    conn.close()
+    cur.close()
