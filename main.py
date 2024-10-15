@@ -9,7 +9,7 @@ import os
 import logging
 from datetime import datetime
 
-from scheduler import get_news_from_api
+from scheduler import get_news_from_api, Deleted_Withdrawal_Member
 from contextlib import asynccontextmanager
 
 # 백그라운드 스케줄링 작업
@@ -20,6 +20,8 @@ async def lifespan(app: FastAPI):
   scheduler = BackgroundScheduler()
   # 1시간마다 새로운 뉴스를 가져오기 위해 뉴스 스크래핑 작업 진행
   scheduler.add_job(get_news_from_api, 'interval', hours=1)
+  # 24시간마다 30일 지난 탈퇴계정 삭제
+  scheduler.add_job(Deleted_Withdrawal_Member, 'interval', days=1)
   scheduler.start()
   # 서버 실행 후 곧바로 뉴스 스크래핑 작업 진행
   # 테스트할 때 확인하기
