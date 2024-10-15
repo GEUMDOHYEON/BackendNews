@@ -68,7 +68,7 @@ def change_filename(file: UploadFile) -> UploadFile:
     """
     uuid_name = uuid.uuid4()
     now_date = datetime.now().strftime("%Y%m%d%H%M")
-    file.filename = f"{uuid_name}_{now_date}.jpeg"
+    file.filename = f"{uuid_name}_{now_date}.png"
     return file
 
 # 일정 비율로 축소

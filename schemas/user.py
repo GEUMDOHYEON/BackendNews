@@ -25,7 +25,7 @@ class Find_ID(BaseModel):
   user_name:str
   user_number:str
 
-# 비밀번호 재설정
+# 비밀번호 재설정 DTO
 class Reset_Password(BaseModel):
   user_email:str
   user_name:str
@@ -63,5 +63,22 @@ class Response_findID(BaseModel):
 
 # 비밀번호 재설정 반환 DTO
 class Response_resetPassword(BaseModel):
+  status:int
+  message:str
+
+# 이미지 조회 반환 DTO
+class Response_profileImage(BaseModel):
+  status:int
+  message:str
+  data:str
+
+# 이미지 수정 반환 DTO
+class Response_profileImageChange(BaseModel):
+  status:int
+  message:str
+
+
+# 회원탈퇴 DTO
+class Response_Secession(BaseModel):
   status:int
   message:str
