@@ -161,3 +161,28 @@ def crawl_dynamic_article(url):
     finally:
         driver.quit()
 
+
+# 30일 탈퇴계정 삭제 스케줄러
+def Deleted_Withdrawal_Member():
+    conn,cur = mysql_create_session()
+
+    try:
+        # Safe update mode 비활성화
+        cur.execute('SET SQL_SAFE_UPDATES = 0')
+
+        # 30일 이전 데이터를 삭제
+        sql = 'DELETE FROM deleted_users WHERE deleted_user_deletedat <= DATE_SUB(NOW(), INTERVAL 30 DAY)'
+        cur.execute(sql)
+
+        # Safe update mode 다시 활성화
+        cur.execute('SET SQL_SAFE_UPDATES = 1')
+
+        conn.commit()
+
+
+    except pymysql.Error as e:
+        print(f"sql 에러: {e}")
+        conn.rollback() 
+    finally:
+        conn.close()
+        cur.close()
