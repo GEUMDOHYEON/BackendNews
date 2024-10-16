@@ -234,7 +234,7 @@ def changeinfo(user:Change_User, access_token: str = Depends(oauth2_scheme)):
 
   # 닉네임
   if status == 100:
-    sql = 'UPDATE Users SET user_name = %s WHERE user_id=%s'
+    sql = 'UPDATE Users SET user_nickname = %s WHERE user_id=%s'
   # 전화번호
   elif status == 200:
     sql = 'UPDATE Users SET user_number = %s WHERE user_id=%s'
@@ -242,7 +242,7 @@ def changeinfo(user:Change_User, access_token: str = Depends(oauth2_scheme)):
   elif status == 300:
     hashed_password = bcrypt.hashpw(changedata.encode('utf-8'), bcrypt.gensalt())
     changedata = hashed_password
-    sql = 'UPDATE Users SET user_name = %s WHERE user_id=%s'
+    sql = 'UPDATE Users SET user_password = %s WHERE user_id=%s'
 
   try:     
     cur.execute(sql,(changedata,user_id))

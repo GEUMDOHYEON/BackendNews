@@ -23,9 +23,6 @@ async def lifespan(app: FastAPI):
   # 24시간마다 30일 지난 탈퇴계정 삭제
   scheduler.add_job(Deleted_Withdrawal_Member, 'interval', days=1)
   scheduler.start()
-  # 서버 실행 후 곧바로 뉴스 스크래핑 작업 진행
-  # 테스트할 때 확인하기
-  # get_news_from_api()
 
   yield
 
@@ -41,7 +38,7 @@ SWAGGER_HEADERS = {
     "description": "## 관리페이지에 오신것을 환영합니다 \n - CoinNews API를 사용해 데이터를 전송할 수 있습니다. \n - 무분별한 사용은 하지 말아주세요 \n - 관리자 번호: 010-1234-5678",
     "contact": {
        "name": "CoinNews",
-       "url": "https://~~~.com"
+       "url": "https://coin-news-site.web.app/"
     },
     
 }
