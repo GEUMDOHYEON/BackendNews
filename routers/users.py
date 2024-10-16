@@ -234,6 +234,14 @@ def changeinfo(user:Change_User, access_token: str = Depends(oauth2_scheme)):
 
   # 닉네임
   if status == 100:
+    # 닉네임 중복 여부 확인
+    sql2 = 'SELECT EXISTS(SELECT 1 FROM Users WHERE user_nickname="{}")'.format(changedata)
+    cur.execute(sql2)
+    dupli = cur.fetchone()
+    exists = list(dupli.values())[0]
+    if exists != 0:
+      return Response_Register(status=419, message="닉네임 중복")
+    
     sql = 'UPDATE Users SET user_nickname = %s WHERE user_id=%s'
   # 전화번호
   elif status == 200:
