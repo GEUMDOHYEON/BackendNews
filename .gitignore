@@ -125,6 +125,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.dev
 .venv
 env/
 venv/
@@ -177,3 +178,4 @@ pyrightconfig.json
 
 info.log
 static
+
