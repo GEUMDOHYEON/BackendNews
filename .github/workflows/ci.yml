@@ -1,0 +1,60 @@
+name: FastAPI CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: mysql:8.0
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
+          MYSQL_USER: ${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+        options: >-
+          --health-cmd "mysqladmin ping --silent"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install docker-compose -y
+
+      - name: Create .env file with secrets
+        run: |
+          echo MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }} >> .env
+          echo MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }} >> .env
+          echo MYSQL_USER=${{ secrets.MYSQL_USER }} >> .env
+          echo MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }} >> .env
+          echo CLIENT_ID=${{ secrets.CLIENT_ID }} >> .env
+          echo CLIENT_SECRET=${{ secrets.CLIENT_SECRET }} >> .env
+          echo SUMMARY_CLIENT_ID=${{ secrets.SUMMARY_CLIENT_ID }} >> .env
+          echo SUMMARY_CLIENT_SECRET=${{ secrets.SUMMARY_CLIENT_SECRET }} >> .env
+          echo SECRET_KEY=${{ secrets.SECRET_KEY }} >> .env
+          echo ALGORITHM=${{ secrets.ALGORITHM }} >> .env
+          echo ACCESS_TOKEN_EXPIRE_MINUTES=${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }} >> .env
+          echo REFRESH_TOKEN_EXPIRE_MINUTES=${{ secrets.REFRESH_TOKEN_EXPIRE_MINUTES }} >> .env
+          echo REFRESH_TOKEN_EXPIRE_MINUTES=${{ secrets.FRONTEND_URL }} >> .env
+
+      - name: Docker Compose up
+        run: docker-compose up -d
+
+      - name: Check environment variables
+        run: |
+          docker-compose exec -T db env
+
+      - name: Test
+        run: docker-compose exec -T fastapi pytest # fastapi 컨테이너 안에서 pytest 실행
+
