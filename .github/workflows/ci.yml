@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     services:
       db:
         image: mysql:8.0
@@ -56,5 +57,5 @@ jobs:
           docker-compose exec -T db env
 
       - name: Test
-        run: docker-compose exec -T fastapi pytest # fastapi 컨테이너 안에서 pytest 실행
+        run: docker-compose exec -T fastapi pytest -n 2 
 
