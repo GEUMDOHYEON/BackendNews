@@ -64,7 +64,5 @@ jobs:
           docker-compose exec -T db env
 
       - name: Test
-        run: docker-compose exec -T fastapi pytest -v
-        env:
-          CI: "" 
+        run: docker-compose exec -T fastapi pytest -v --maxfail=1 --disable-warnings  # 추가적인 디버깅을 위해
 
