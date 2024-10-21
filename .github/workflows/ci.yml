@@ -64,5 +64,5 @@ jobs:
           docker-compose exec -T db env
 
       - name: Test
-        run: docker-compose exec -T fastapi pytest
+        run: docker-compose exec -T fastapi pytest -v
 
