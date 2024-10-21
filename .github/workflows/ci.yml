@@ -51,6 +51,14 @@ jobs:
       - name: Docker Compose up
         run: docker-compose up -d
 
+      - name: Wait for MySQL to be ready
+        run: |
+          until docker-compose exec -T db mysqladmin ping -h "db" --silent; do
+            echo "Waiting for MySQL to be ready..."
+            sleep 5
+          done
+
+
       - name: Check environment variables
         run: |
           docker-compose exec -T db env
