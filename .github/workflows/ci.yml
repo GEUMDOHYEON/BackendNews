@@ -65,4 +65,6 @@ jobs:
 
       - name: Test
         run: docker-compose exec -T fastapi pytest -v
+        env:
+          CI: "" 
 
