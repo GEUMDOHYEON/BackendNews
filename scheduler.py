@@ -27,7 +27,7 @@ CLIENT_ID = os.environ['CLIENT_ID']
 CLIENT_SECRET = os.environ['CLIENT_SECRET']
 
 #크롬 드라이버 위치
-EXCUTABLE_PATH = os.environ['EXCUTABLE_PATH']
+# EXCUTABLE_PATH = os.environ['EXCUTABLE_PATH']
 
 # 크롬 옵션 드라이버 설정
 chrome_options = webdriver.ChromeOptions()
