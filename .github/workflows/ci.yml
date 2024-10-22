@@ -1,0 +1,85 @@
+name: FastAPI CI
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: mysql:8.0
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
+          MYSQL_USER: ${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+        options: >-
+          --health-cmd "mysqladmin ping --silent"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install docker-compose -y
+          
+      - name: Create .env file with secrets
+        run: |
+          echo MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }} >> .env
+          echo MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }} >> .env
+          echo MYSQL_USER=${{ secrets.MYSQL_USER }} >> .env
+          echo MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }} >> .env
+          echo CLIENT_ID=${{ secrets.CLIENT_ID }} >> .env
+          echo CLIENT_SECRET=${{ secrets.CLIENT_SECRET }} >> .env
+          echo SUMMARY_CLIENT_ID=${{ secrets.SUMMARY_CLIENT_ID }} >> .env
+          echo SUMMARY_CLIENT_SECRET=${{ secrets.SUMMARY_CLIENT_SECRET }} >> .env
+          echo SECRET_KEY=${{ secrets.SECRET_KEY }} >> .env
+          echo ALGORITHM=${{ secrets.ALGORITHM }} >> .env
+          echo ACCESS_TOKEN_EXPIRE_MINUTES=${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }} >> .env
+          echo REFRESH_TOKEN_EXPIRE_MINUTES=${{ secrets.REFRESH_TOKEN_EXPIRE_MINUTES }} >> .env
+          
+      - name: Docker Compose up
+        run: docker-compose up -d
+        
+      - name: Check if containers are running
+        run: |
+          docker ps
+          docker-compose ps
+          docker-compose exec -T fastapi pwd
+          docker-compose exec -T fastapi ls -la
+          
+      - name: Wait for MySQL to be ready
+        run: |
+          until docker-compose exec -T db mysqladmin ping -h "db" --silent; do
+            echo "Waiting for MySQL to be ready..."
+            sleep 5
+          done
+          
+      - name: Check environment variables
+        run: |
+          docker-compose exec -T db env
+          
+      - name: Enable debug logging
+        run: |
+          echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV
+          echo "PYTHON_DEBUG=1" >> $GITHUB_ENV
+          
+      - name: Test
+        run: |
+          docker-compose exec -T fastapi pytest -v --capture=no --log-cli-level=DEBUG
+          
+      - name: Check Docker logs
+        if: always()
+        run: |
+          docker-compose logs fastapi
+          docker-compose logs db
+          
+      - name: Check Docker container status
+        if: always()
+        run: docker-compose ps
