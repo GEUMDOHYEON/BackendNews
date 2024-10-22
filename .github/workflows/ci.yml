@@ -1,14 +1,11 @@
 name: FastAPI CI
-
 on:
   pull_request:
     branches:
       - main
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     services:
       db:
         image: mysql:8.0
@@ -26,11 +23,12 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v2
-
+      
       - name: Set up Docker Compose
         run: |
           sudo apt-get update
           sudo apt-get install docker-compose -y
+          
       - name: Create .env file with secrets
         run: |
           echo MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }} >> .env
@@ -48,7 +46,14 @@ jobs:
           
       - name: Docker Compose up
         run: docker-compose up -d
-
+        
+      - name: Check if containers are running
+        run: |
+          docker ps
+          docker-compose ps
+          docker-compose exec -T fastapi pwd
+          docker-compose exec -T fastapi ls -la
+          
       - name: Wait for MySQL to be ready
         run: |
           until docker-compose exec -T db mysqladmin ping -h "db" --silent; do
@@ -62,8 +67,19 @@ jobs:
           
       - name: Enable debug logging
         run: |
-          echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV  # GitHub Actions의 디버그 모드 활성화
-          echo "PYTHON_DEBUG=1" >> $GITHUB_ENV  # Python 관련 디버깅 로그 활성화
-
+          echo "GITHUB_ACTIONS=true" >> $GITHUB_ENV
+          echo "PYTHON_DEBUG=1" >> $GITHUB_ENV
+          
       - name: Test
-        run: docker-compose exec -T fastapi pytest --pdb -v
+        run: |
+          docker-compose exec -T fastapi pytest -v --capture=no --log-cli-level=DEBUG
+          
+      - name: Check Docker logs
+        if: always()
+        run: |
+          docker-compose logs fastapi
+          docker-compose logs db
+          
+      - name: Check Docker container status
+        if: always()
+        run: docker-compose ps
