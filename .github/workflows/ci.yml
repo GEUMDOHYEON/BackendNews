@@ -44,6 +44,8 @@ jobs:
           echo ACCESS_TOKEN_EXPIRE_MINUTES=${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }} >> .env
           echo REFRESH_TOKEN_EXPIRE_MINUTES=${{ secrets.REFRESH_TOKEN_EXPIRE_MINUTES }} >> .env
           echo EXCUTABLE_PATH=${{ secrets.EXCUTABLE_PATH }} >> .env
+          echo FRONTEND_URL=${{ secrets.FRONTEND_URL }} >> .env
+
 
           
       - name: Docker Compose up
