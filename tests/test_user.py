@@ -2,9 +2,11 @@ import pytest
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+import logging
 from fastapi.testclient import TestClient
 from main import app
+
+logger = logging.getLogger('test')
 
 client = TestClient(app)
 
@@ -16,6 +18,8 @@ test_user = {
     "user_nickname": "test",
     "user_age": 1
 }
+
+news_id = 1
 
 def test():
   response = client.get("/")
@@ -35,10 +39,16 @@ def test_register():
     print(response.json())  # 유효성 검사 오류 확인
     assert response.status_code == 200
 
-# # 로그인 테스트
-# def test_login():
-#     response = client.post("/users/login", json={"user_email": test_user["user_email"], "user_password": test_user["user_password"]})
-#     assert response.status_code == 201
-#     assert response.json()["message"] == "로그인 성공"
-#     assert "access_token" in response.json()["data"]
-#     assert "refresh_token" in response.json()["data"]
+# 로그인 테스트
+def test_login():
+    response = client.post("/users/login", json={"email": test_user["user_email"], "password": test_user["user_password"]})
+    assert response.status_code == 200
+    assert response.json()["message"] == "로그인 성공"
+    assert "access_token" in response.json()["data"]
+    assert "refresh_token" in response.json()["data"]
+
+# 뉴스 목록 조회 API
+def test_get_news_list():
+   response = client.get("/news/getNewsList/noraml/1/5")
+   assert response.status_code == 200
+
