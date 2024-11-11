@@ -1,8 +1,20 @@
 version: "3.8"
 
 services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./FrontNews/build:/usr/share/nginx/html
+    depends_on:
+      - fastapi
+
   db:
     image: mysql:8.0
+    container_name: mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -14,11 +26,12 @@ services:
       - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./my.cnf:/etc/mysql/conf.d/my.cnf
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/my.cnf:/etc/mysql/conf.d/my.cnf
 
   fastapi:
-    build: .
+    build: ./backend
+    container_name: fastapi
     depends_on:
       - db
     environment:
