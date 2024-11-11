@@ -43,7 +43,7 @@ SWAGGER_HEADERS = {
     
 }
 
-app = FastAPI(lifespan=lifespan, **SWAGGER_HEADERS)
+app = FastAPI(lifespan=lifespan, **SWAGGER_HEADERS, root_path="/api")
 
 
 # 로깅 설정
