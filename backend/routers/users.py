@@ -15,6 +15,8 @@ from schemas.user import *
 from schemas.token import *
 from routers.news import findUserID
 from uploadimage import upload_image
+import smtplib
+from email.mime.text import MIMEText
 
 #jwt에 필요한 전역변수
 SECRET_KEY = os.environ["SECRET_KEY"]
@@ -45,6 +47,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"])
 #refresh_token 만료(분)
 REFRESH_TOKEN_EXPIRE_MINUTES = int(os.environ["REFRESH_TOKEN_EXPIRE_MINUTES"])
 
+#gmail 인증
+GMAIL_ID = os.environ["GMAIL_ID"]
+GMAIL_PASSWORD = os.environ["GMAIL_PASSWORD"]
+
 @router.get("/")
 def tmp_user():
   return "HELLO WORLD"
@@ -63,13 +69,7 @@ def register(user:Register_User):
 
 
   try:
-    # 이메일 중복 여부 확인
-    sql1 = 'SELECT EXISTS(SELECT 1 FROM Users WHERE user_email="{}")'.format(user_email)
-    cur.execute(sql1)
-    dupli = cur.fetchone()
-    exists = list(dupli.values())[0]
-    if exists != 0:
-      return Response_Register(status=418, message="아이디 중복")
+    
     
     # 닉네임 중복 여부 확인
     sql2 = 'SELECT EXISTS(SELECT 1 FROM Users WHERE user_nickname="{}")'.format(user_nickname)
@@ -83,9 +83,9 @@ def register(user:Register_User):
     conn.close()
     cur.close()
     raise HTTPException(status_code=404,detail="회원가입 실패")
-
-    
   
+  
+
   #패스워드 해싱
   hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
   try:
@@ -458,3 +458,44 @@ def secession(access_token: str = Depends(oauth2_scheme)):
   finally:
     conn.close()
     cur.close()
+
+
+# 이메일 인증 API
+@router.post("/emailVerification",response_model=Response_emailVerification)
+def profileImageChange(data:emailVerification):
+  """
+  이메일을 인증합니다.
+  """
+  user_email = data.email
+  conn, cur = mysql_create_session()
+
+  try:
+    # 이메일 중복 여부 확인
+    sql1 = 'SELECT EXISTS(SELECT 1 FROM Users WHERE user_email="{}")'.format(user_email)
+    cur.execute(sql1)
+    dupli = cur.fetchone()
+    exists = list(dupli.values())[0]
+    if exists != 0:
+      return Response_Register(status=418, message="아이디 중복")
+
+    smtp = smtplib.SMTP('smtp.gmail.com',587)
+    smtp.set_debuglevel(True)
+    smtp.ehlo()
+    smtp.starttls()
+
+    smtp.login(GMAIL_ID,GMAIL_PASSWORD)
+
+    msg = MIMEText('내용 : 이메일 테스트중...')
+    msg['Subject'] = '제목: 회원가입 이메일 테스트중...'
+    msg['From'] = GMAIL_ID
+    msg['To'] = user_email
+
+    smtp.sendmail(GMAIL_ID,user_email,msg.as_string())
+
+    raise HTTPException(status_code=201, detail="이메일 전송 성공")
+  except:
+    raise HTTPException(status_code=404, detail="이메일 전송 실패")
+  finally:
+    conn.close()
+    cur.close()
+    smtp.quit()

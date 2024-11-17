@@ -32,6 +32,10 @@ class Reset_Password(BaseModel):
   user_number:str
   new_password:str
 
+#이메일인증 DTO
+class emailVerification(BaseModel):
+  email:str
+
 #회원가입 반환 DTO
 class Response_Register(BaseModel):
   status:int
@@ -78,7 +82,13 @@ class Response_profileImageChange(BaseModel):
   message:str
 
 
-# 회원탈퇴 DTO
+# 회원탈퇴 반환 DTO
 class Response_Secession(BaseModel):
   status:int
   message:str
+
+#이메일인증 반환 DTO
+class Response_emailVerification(BaseModel):
+  status:int
+  message:str
+  data:str

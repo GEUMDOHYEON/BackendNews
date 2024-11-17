@@ -5,7 +5,7 @@ services:
     image: nginx:latest
     container_name: nginx
     ports:
-      - "80:80"
+      - "8050:8050"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ./FrontNews/build:/usr/share/nginx/html
@@ -38,7 +38,7 @@ services:
       TZ: Asia/Seoul
       DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}?charset=utf8mb4
     ports:
-      - "8000:8000"
+      - "8050:8050"
 
 volumes:
   db_data:
