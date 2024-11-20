@@ -50,7 +50,7 @@ class Response_PostUpload_Model (BaseModel):
 class Response_PostRead_Model (BaseModel):
     status : int
     message : str
-    data : list
+    data : dict
     
 class Response_PostRemove_Model (BaseModel):
     status : int
