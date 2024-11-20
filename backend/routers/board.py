@@ -137,6 +137,7 @@ def postUpload(postUpload_data : PostUpload_Model):
     sql = 'SELECT community_id,community_title,community_createat FROM Community ORDER BY community_id DESC limit %s, %s;'
     cur.execute(sql,(start, postUpload_data.itemCount))
     result = cur.fetchall()
+    {"total":total,"posts":result}
     return Response_PostUpload_Model(status=200, message="게시판 목록 불러오기 성공",data=result)
   except Exception as e:
     conn.rollback()
@@ -160,6 +161,13 @@ def postRead(postRead_data : PostRead_Model):
   sql1 = 'SELECT community_search FROM Community WHERE community_id = %s'
   cur.execute(sql1, (community_id,))
 
+  sql3 = 'SELECT user_id FROM Community WHERE community_id = %s'
+  cur.execute(sql3, (community_id,))
+  user_id = cur.fetchall()
+
+  sql2 = 'SELECT user_nickname FROM Users WHERE user_id = %s'
+  cur.execute(sql2, (user_id,))
+  
   # 검색 후 조회수 1 증가
   try:
     community_search = cur.fetchone()['community_search'] + 1
@@ -167,7 +175,7 @@ def postRead(postRead_data : PostRead_Model):
     cur.execute(sql2, (community_search, community_id,))
     conn.commit()
   
-    sql = 'SELECT community_id,community_title,community_createat,user_id,community_search FROM Community WHERE community_id = %s;'
+    sql = 'SELECT community_id,community_title,community_content,community_createat,user_nickname,community_search FROM Community WHERE community_id = %s;'
     cur.execute(sql,(community_id))
     data = cur.fetchall()
     return Response_PostRead_Model(status=201, message="게시물 세부정보 가져오기 성공", data=data)
