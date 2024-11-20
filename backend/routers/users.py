@@ -460,42 +460,42 @@ def secession(access_token: str = Depends(oauth2_scheme)):
     cur.close()
 
 
-# # 이메일 인증 API
-# @router.post("/emailVerification",response_model=Response_emailVerification)
-# def profileImageChange(data:emailVerification):
-#   """
-#   이메일을 인증합니다.
-#   """
-#   user_email = data.email
-#   conn, cur = mysql_create_session()
+# 이메일 인증 API
+@router.post("/emailVerification",response_model=Response_emailVerification)
+def profileImageChange(data:emailVerification):
+  """
+  이메일을 인증합니다.
+  """
+  user_email = data.email
+  conn, cur = mysql_create_session()
 
-#   try:
-#     # 이메일 중복 여부 확인
-#     sql1 = 'SELECT EXISTS(SELECT 1 FROM Users WHERE user_email="{}")'.format(user_email)
-#     cur.execute(sql1)
-#     dupli = cur.fetchone()
-#     exists = list(dupli.values())[0]
-#     if exists != 0:
-#       return Response_Register(status=418, message="아이디 중복")
+  try:
+    # 이메일 중복 여부 확인
+    sql1 = 'SELECT EXISTS(SELECT 1 FROM Users WHERE user_email="{}")'.format(user_email)
+    cur.execute(sql1)
+    dupli = cur.fetchone()
+    exists = list(dupli.values())[0]
+    if exists != 0:
+      return Response_Register(status=418, message="아이디 중복")
 
-#     smtp = smtplib.SMTP('smtp.gmail.com',587)
-#     smtp.set_debuglevel(True)
-#     smtp.ehlo()
-#     smtp.starttls()
+    smtp = smtplib.SMTP('smtp.gmail.com',587)
+    smtp.set_debuglevel(True)
+    smtp.ehlo()
+    smtp.starttls()
 
-#     smtp.login(GMAIL_ID,GMAIL_PASSWORD)
+    smtp.login(GMAIL_ID,GMAIL_PASSWORD)
 
-#     msg = MIMEText('내용 : 이메일 테스트중...')
-#     msg['Subject'] = '제목: 회원가입 이메일 테스트중...'
-#     msg['From'] = GMAIL_ID
-#     msg['To'] = user_email
+    msg = MIMEText('내용 : 이메일 테스트중...')
+    msg['Subject'] = '제목: 회원가입 이메일 테스트중...'
+    msg['From'] = GMAIL_ID
+    msg['To'] = user_email
 
-#     smtp.sendmail(GMAIL_ID,user_email,msg.as_string())
+    smtp.sendmail(GMAIL_ID,user_email,msg.as_string())
 
-#     raise HTTPException(status_code=201, detail="이메일 전송 성공")
-#   except:
-#     raise HTTPException(status_code=404, detail="이메일 전송 실패")
-#   finally:
-#     conn.close()
-#     cur.close()
-#     smtp.quit()
+    raise HTTPException(status_code=201, detail="이메일 전송 성공")
+  except:
+    raise HTTPException(status_code=404, detail="이메일 전송 실패")
+  finally:
+    conn.close()
+    cur.close()
+    smtp.quit()

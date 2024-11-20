@@ -71,4 +71,4 @@ class Response_CommentRemove_Model (BaseModel):
 class Response_CommentRead_Model (BaseModel):
     status : int
     message : str
-    data : list
+    data : dict
