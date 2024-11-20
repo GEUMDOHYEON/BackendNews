@@ -134,11 +134,11 @@ def postUpload(postUpload_data : PostUpload_Model):
     cur.execute(sql)
     total = cur.fetchone()['count(*)']
     
-    sql = 'SELECT community_id,community_title,community_createat FROM Community ORDER BY community_id DESC limit %s, %s;'
+    sql = 'SELECT community_id,community_title,community_createat, community_search FROM Community ORDER BY community_id DESC limit %s, %s;'
     cur.execute(sql,(start, postUpload_data.itemCount))
     result = cur.fetchall()
-    {"total":total,"posts":result}
-    return Response_PostUpload_Model(status=200, message="게시판 목록 불러오기 성공",data=result)
+    data_result = {"total":total,"posts":result}
+    return Response_PostUpload_Model(status=200, message="게시판 목록 불러오기 성공",data=data_result)
   except Exception as e:
     conn.rollback()
     # 에러 발생시 예외 메세지 (detail)를 전달 
@@ -160,6 +160,7 @@ def postRead(postRead_data : PostRead_Model):
   # 조회수
   sql1 = 'SELECT community_search FROM Community WHERE community_id = %s'
   cur.execute(sql1, (community_id,))
+  community_search = cur.fetchall()
 
   sql3 = 'SELECT user_id FROM Community WHERE community_id = %s'
   cur.execute(sql3, (community_id,))
@@ -167,6 +168,7 @@ def postRead(postRead_data : PostRead_Model):
 
   sql2 = 'SELECT user_nickname FROM Users WHERE user_id = %s'
   cur.execute(sql2, (user_id,))
+  user_nickname = cur.fetchall()
   
   # 검색 후 조회수 1 증가
   try:
@@ -175,10 +177,11 @@ def postRead(postRead_data : PostRead_Model):
     cur.execute(sql2, (community_search, community_id,))
     conn.commit()
   
-    sql = 'SELECT community_id,community_title,community_content,community_createat,user_nickname,community_search FROM Community WHERE community_id = %s;'
+    sql = 'SELECT community_id,community_title,community_content,community_createat,community_search FROM Community WHERE community_id = %s;'
     cur.execute(sql,(community_id))
     data = cur.fetchall()
-    return Response_PostRead_Model(status=201, message="게시물 세부정보 가져오기 성공", data=data)
+    result = {"nickname" : user_nickname, "data" : data}
+    return Response_PostRead_Model(status=201, message="게시물 세부정보 가져오기 성공", data=result)
   except Exception as e:
     conn.rollback()
     # 에러 발생시 예외 메세지 (detail)를 전달 
@@ -334,8 +337,10 @@ def postUpload(commentRead_data : CommentRead_Model):
   conn, cur = mysql_create_session()
 
   community_id = commentRead_data.community_id
-
   try:
+    
+    
+    
     sql = 'SELECT comment_id,community_id,user_id,comment_content,comment_createat FROM Community_Comments WHERE community_id = %s;'
     cur.execute(sql,(community_id,))
     result = cur.fetchall()
@@ -365,6 +370,7 @@ def postRemove(commentRemove_data: CommentRemove_Model, access_token: str = Depe
   # 삭제할 게시글 ID
   comment_id = commentRemove_data.comment_id
   # print(community_id)
+
 
   try:
     # 게시글 작성자(user_id) 확인

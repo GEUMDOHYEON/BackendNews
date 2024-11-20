@@ -15,9 +15,8 @@ from schemas.user import *
 from schemas.token import *
 from routers.news import findUserID
 from uploadimage import upload_image
-import smtplib, ssl
+import smtplib
 from email.mime.text import MIMEText
-import random
 
 #jwt에 필요한 전역변수
 SECRET_KEY = os.environ["SECRET_KEY"]
@@ -51,8 +50,6 @@ REFRESH_TOKEN_EXPIRE_MINUTES = int(os.environ["REFRESH_TOKEN_EXPIRE_MINUTES"])
 #gmail 인증
 GMAIL_ID = os.environ["GMAIL_ID"]
 GMAIL_PASSWORD = os.environ["GMAIL_PASSWORD"]
-SMTP_SSL_PORT=os.environ["SMTP_SSL_PORT"]
-SMTP_SERVER=os.environ["SMTP_SERVER"]
 
 @router.get("/")
 def tmp_user():
@@ -463,46 +460,42 @@ def secession(access_token: str = Depends(oauth2_scheme)):
     cur.close()
 
 
-# 이메일 인증 API
-@router.post("/emailVerification",response_model=Response_emailVerification)
-def profileImageChange(data:emailVerification):
-  """
-  이메일을 인증합니다.
-  """
-  user_email = data.email
-  conn, cur = mysql_create_session()
+# # 이메일 인증 API
+# @router.post("/emailVerification",response_model=Response_emailVerification)
+# def profileImageChange(data:emailVerification):
+#   """
+#   이메일을 인증합니다.
+#   """
+#   user_email = data.email
+#   conn, cur = mysql_create_session()
 
-  try:
-    # 이메일 중복 여부 확인
-    sql1 = 'SELECT EXISTS(SELECT 1 FROM Users WHERE user_email="{}")'.format(user_email)
-    cur.execute(sql1)
-    dupli = cur.fetchone()
-    exists = list(dupli.values())[0]
-    if exists != 0:
-      return Response_Register(status=418, message="아이디 중복")
-    
-    alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
-    Authentication_code = ""
+#   try:
+#     # 이메일 중복 여부 확인
+#     sql1 = 'SELECT EXISTS(SELECT 1 FROM Users WHERE user_email="{}")'.format(user_email)
+#     cur.execute(sql1)
+#     dupli = cur.fetchone()
+#     exists = list(dupli.values())[0]
+#     if exists != 0:
+#       return Response_Register(status=418, message="아이디 중복")
 
-    for _ in range(6):
-      index = random.randrange(len(alphabet))
-      Authentication_code+=alphabet[index]
+#     smtp = smtplib.SMTP('smtp.gmail.com',587)
+#     smtp.set_debuglevel(True)
+#     smtp.ehlo()
+#     smtp.starttls()
 
-    context = ssl.create_default_context()
+#     smtp.login(GMAIL_ID,GMAIL_PASSWORD)
 
-    with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_SSL_PORT, context=context) as server:
-      server.login(GMAIL_ID, GMAIL_PASSWORD)
+#     msg = MIMEText('내용 : 이메일 테스트중...')
+#     msg['Subject'] = '제목: 회원가입 이메일 테스트중...'
+#     msg['From'] = GMAIL_ID
+#     msg['To'] = user_email
 
-      msg = MIMEText("회원의 인증번호는 : "+ Authentication_code) # 내용
-      msg['Subject'] = 'CoinNews 인증번호' # 제목
-      msg['From'] = GMAIL_ID # 보내는이
-      msg['To'] = user_email # 받는이
+#     smtp.sendmail(GMAIL_ID,user_email,msg.as_string())
 
-      server.sendmail(GMAIL_ID, user_email, msg.as_string())
-
-    raise Response_emailVerification(status_code=201, detail="이메일 전송 성공",data=Authentication_code)
-  except:
-    raise HTTPException(status_code=404, detail="이메일 전송 실패")
-  finally:
-    conn.close()
-    cur.close()
+#     raise HTTPException(status_code=201, detail="이메일 전송 성공")
+#   except:
+#     raise HTTPException(status_code=404, detail="이메일 전송 실패")
+#   finally:
+#     conn.close()
+#     cur.close()
+#     smtp.quit()
