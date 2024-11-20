@@ -282,7 +282,7 @@ def scrapNews(data: My_News, access_token: str = Depends(oauth2_scheme)):
       if article_result['user_article_scrap'] == 1:
         # 기사의 스크랩 수 1 감소
           article_scrap -= 1
-          sql6 = 'UPDATE Article SET article_like = %s WHERE article_id = %s'
+          sql6 = 'UPDATE Article SET article_scrap = %s WHERE article_id = %s'
           cur.execute(sql6,(article_scrap, article_id))
           conn.commit()
 
