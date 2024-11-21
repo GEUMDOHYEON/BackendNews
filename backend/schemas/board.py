@@ -45,7 +45,7 @@ class Response_PostEdit_Model (BaseModel):
 class Response_PostUpload_Model (BaseModel):
     status : int
     message : str
-    data : list
+    data : dict
     
 class Response_PostRead_Model (BaseModel):
     status : int
@@ -71,4 +71,4 @@ class Response_CommentRemove_Model (BaseModel):
 class Response_CommentRead_Model (BaseModel):
     status : int
     message : str
-    data : list
+    data : dict
