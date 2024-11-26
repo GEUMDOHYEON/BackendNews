@@ -45,6 +45,10 @@ jobs:
           echo REFRESH_TOKEN_EXPIRE_MINUTES=${{ secrets.REFRESH_TOKEN_EXPIRE_MINUTES }} >> .env
           echo EXCUTABLE_PATH=${{ secrets.EXCUTABLE_PATH }} >> .env
           echo FRONTEND_URL=${{ secrets.FRONTEND_URL }} >> .env
+          echo GMAIL_ID=${{ secrets.GMAIL_ID }} >> .env
+          echo GMAIL_PASSWORD=${{ secrets.GMAIL_PASSWORD }} >> .env
+          echo SMTP_SSL_PORT=${{ secrets.SMTP_SSL_PORT }} >> .env
+          echo SMTP_SERVER=${{ secrets.SMTP_SERVER }} >> .env
           cp .env backend/.env
 
       - name: Docker Compose up
